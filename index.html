@@ -63,7 +63,10 @@
   .tabs button[aria-selected=true]{color:var(--ink);box-shadow:inset 0 4px 0 var(--label)}
 
   /* Scan */
-  #reader{width:100%;border-radius:8px;overflow:hidden;background:#000;min-height:0}
+  .stick{position:sticky;top:0;z-index:4;background:var(--paper);padding:8px 0 10px;margin-top:-8px;box-shadow:0 6px 8px -6px rgba(18,38,58,.35)}
+  .stick .tag{margin-bottom:8px}
+  .stick .row{align-items:stretch}
+  #reader{width:100%;max-height:220px;border-radius:8px;overflow:hidden;background:#000;min-height:0;margin-bottom:10px}
   #reader video{border-radius:8px}
   .qtybox{display:flex;align-items:stretch;gap:0}
   .qtybox button{width:52px;min-height:48px;border:1.5px solid var(--line);background:#fff;font-size:22px;font-weight:600;cursor:pointer}
@@ -73,8 +76,17 @@
 
   /* Label rak: satu-satunya elemen yang menonjol */
   .tag{background:var(--label);border-radius:10px;padding:16px 18px;margin-bottom:12px;border-bottom:5px solid var(--ink);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:end}
-  .tag .nm{font-family:var(--head);font-weight:600;font-size:22px;line-height:1.15}
-  .tag .sk{font-size:14px;letter-spacing:.02em}
+  .tag .sk{grid-column:1;grid-row:1;min-width:0;font-family:var(--head);font-weight:700;font-size:26px;line-height:1.1;letter-spacing:.01em;overflow-wrap:anywhere}
+  .tag .nm{grid-column:1;grid-row:2;min-width:0;font-size:15px;font-weight:500;color:var(--ink-2);line-height:1.25}
+  .tag.item{display:block}
+  .tag.item .sk{margin-bottom:4px}
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .hist li:last-child{border-bottom:0}
+  .hist .hs{font-family:var(--head);font-weight:700;font-size:20px;line-height:1.1;word-break:break-all}
+  .hist .hn{display:block;font-size:13px;color:var(--ink-2);font-weight:400;font-family:var(--body)}
+  .hist .hx{min-height:34px;padding:2px 10px;font-size:13px;margin-top:4px}
+  .hist .hr{text-align:right;flex:none;font-size:13px;color:var(--ink-2)}
   .tag .cnt{grid-row:1/3;grid-column:2;text-align:right}
   .tag .big{font-family:var(--head);font-weight:700;font-size:72px;line-height:.9;display:block}
   .tag .cap{font-size:13px;font-weight:600}
@@ -97,6 +109,8 @@
   th{font-family:var(--head);font-size:15px;background:#EEF1F4;position:sticky;top:0}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   td small{display:block;color:var(--ink-2)}
+  td .rsku{display:block;font-family:var(--head);font-weight:700;font-size:19px;line-height:1.15;overflow-wrap:anywhere}
+  td .rsku+small{font-size:13px;margin-top:2px}
   tr:last-child td{border-bottom:0}
 
   .toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
@@ -168,16 +182,41 @@
           <div><b id="pgLuar">0</b><span>Di luar system</span></div>
         </div>
       </div>
-      <div id="tagBox" class="tag empty">Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.</div>
+      <div class="stick">
+        <div id="tagBox" class="tag empty">Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.</div>
 
-      <div class="card">
-        <div id="reader" hidden></div>
-        <button id="btnCam" class="btn primary block">Buka kamera</button>
-        <div style="height:12px"></div>
-        <label for="inSku">Ketik SKU atau gunakan scanner (tekan Enter)</label>
-        <input id="inSku" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done">
+        <div class="card" style="margin-bottom:0">
+          <div id="reader" hidden></div>
+          <button id="btnNext" class="btn primary block" style="margin-bottom:10px" hidden>Scan berikutnya</button>
+          <label for="inSku">Ketik SKU atau gunakan scanner (tekan Enter)</label>
+          <div class="row">
+            <input id="inSku" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done">
+            <button id="btnCam" class="btn primary" style="flex:none">Buka kamera</button>
+          </div>
+          <div class="row" style="margin-top:8px;align-items:stretch;flex-wrap:wrap">
+            <button id="btnMode" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px"></button>
+            <button id="btnSound" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px"></button>
+            <button id="btnTorch" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px" hidden>🔦 Senter: Mati</button>
+          </div>
+        </div>
       </div>
+      <div style="height:12px"></div>
       <button id="btnUndo" class="btn danger block">Batalkan scan terakhir saya</button>
+      <div class="card" style="margin-top:12px">
+        <h2>Riwayat scan</h2>
+        <ul id="histList" class="hist"></ul>
+        <p id="histEmpty" class="muted" style="margin:0">Belum ada scan di sesi ini.</p>
+      </div>
+      <details id="nsBox" class="card">
+        <summary style="font-family:var(--head);font-weight:700;font-size:20px;cursor:pointer">Cari barang belum discan</summary>
+        <div style="height:10px"></div>
+        <div class="row" style="align-items:stretch">
+          <input id="nsFind" type="search" placeholder="SKU atau nama barang">
+          <button id="nsReload" class="btn" style="flex:none">Muat ulang</button>
+        </div>
+        <ul id="nsList" class="hist"></ul>
+        <p id="nsNote" class="muted" style="margin:8px 0 0"></p>
+      </details>
     </section>
 
     <!-- REKAP -->
@@ -213,6 +252,14 @@
 
     <!-- ADMIN -->
     <section id="tab-admin" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Google Sheet</h2>
+        <p class="muted">Buka file Google Sheet tempat semua data dan hasil scan tersimpan.</p>
+        <a id="lnkSheet" class="btn primary block" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none" hidden>Buka Google Sheet</a>
+        <div style="height:8px"></div>
+        <a id="lnkHasil" class="btn block" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none" hidden>Buka sheet hasil sesi terpilih</a>
+        <p id="lnkMsg" class="muted" style="margin:8px 0 0"></p>
+      </div>
       <div class="card">
         <h2>Data toko</h2>
         <p class="muted">Dipakai untuk nama output, misalnya STOCK TAKE_JW5006_CGAR_20261114_153045. Berlaku untuk sesi yang dibuat setelah ini.</p>
@@ -261,6 +308,19 @@
         <button id="btnUpload" class="btn primary block" disabled>Upload data system</button>
         <div class="progress" id="upBar" hidden><i></i></div>
         <p id="upMsg" class="muted"></p>
+      </div>
+      <div class="card">
+        <h2>Import hasil scan (TXT)</h2>
+        <p class="muted">Data masuk ke sesi yang dipilih di atas, seperti hasil scan. SKU yang sudah ada di sesi dilewati.<br>
+          <b>Itemize:</b> satu kolom <code>SKU</code> atau dua kolom <code>rak,SKU</code> (yang dipakai hanya SKU), contoh <code>3101270</code> atau <code>AG01-01/WC,3101270</code>.<br>
+          <b>Stock take:</b> <code>rak,SKU</code> atau <code>rak,SKU,qty</code>, contoh <code>AG01-01/WC,3101270,1</code>. Tanpa qty, dipakai qty system. SKU kembar digabung (qty dijumlahkan).</p>
+        <input id="fileImport" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv">
+        <div id="impInfo" class="muted" style="margin:10px 0"></div>
+        <ul id="impPrev" class="hist"></ul>
+        <div style="height:8px"></div>
+        <button id="btnImport" class="btn primary block" disabled>Import ke sesi terpilih</button>
+        <div class="progress" id="impBar" hidden><i></i></div>
+        <p id="impMsg" class="muted"></p>
       </div>
       <div class="card">
         <h2>Reset hasil scan</h2>
@@ -334,31 +394,48 @@ function toast(msg, isErr){
 }
 
 let audioCtx;
-function beep(ok){
-  try{
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.frequency.value = ok ? 880 : 220; g.gain.value = .15;
-    o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + (ok ? .09 : .3));
-  }catch(e){}
-  if (navigator.vibrate) navigator.vibrate(ok ? 40 : [80, 60, 80]);
+let SOUND = store.get('sound', true);
+function tone(freq, at, dur){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.frequency.value = freq; g.gain.value = .15;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(audioCtx.currentTime + at); o.stop(audioCtx.currentTime + at + dur);
+}
+// kind: true = SKU baru tercatat (nada tinggi pendek), 'dup' = sudah pernah discan (dua nada sedang), false = tidak dikenal / ditolak (nada rendah panjang)
+function beep(kind){
+  if (SOUND){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (kind === true) tone(880, 0, .09);
+      else if (kind === 'dup'){ tone(600, 0, .07); tone(600, .12, .07); }
+      else if (kind === 'q') tone(500, 0, .08);
+      else tone(220, 0, .3);
+    }catch(e){}
+  }
+  if (navigator.vibrate) navigator.vibrate(kind === true || kind === 'q' ? 40 : kind === 'dup' ? [40, 50, 40] : [80, 60, 80]);
 }
 
 /* ============ API ============ */
 class NetError extends Error {}
 async function api(action, data = {}){
   if (!CONFIG.API_URL || CONFIG.API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi di index.html');
-  let res;
+  let res, j;
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), action === 'scan' ? 20000 : 120000);   // sinyal lemah: jangan menggantung selamanya
   try{
-    res = await fetch(CONFIG.API_URL, {
-      method: 'POST', redirect: 'follow',
-      headers: {'Content-Type': 'text/plain;charset=utf-8'},   // menghindari preflight CORS
-      body: JSON.stringify(Object.assign({action, pin: S.pin}, data))
-    });
-  }catch(e){ throw new NetError('Tidak ada koneksi'); }
-  let j;
-  try{ j = await res.json(); }catch(e){ throw new NetError('Respons server tidak valid'); }
-  if (!j.ok) throw new Error(j.error || 'Terjadi kesalahan');
+    try{
+      res = await fetch(CONFIG.API_URL, {
+        method: 'POST', redirect: 'follow', signal: ac.signal,
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},   // menghindari preflight CORS
+        body: JSON.stringify(Object.assign({action, pin: S.pin}, data))
+      });
+    }catch(e){ throw new NetError('Tidak ada koneksi'); }
+    try{ j = await res.json(); }catch(e){ throw new NetError('Respons server tidak valid'); }
+  } finally { clearTimeout(tm); }
+  if (!j.ok){
+    const err = new Error(j.error || 'Terjadi kesalahan');
+    err.retry = !/SKU kosong|Sesi tidak ditemukan|Sesi sudah selesai/i.test(err.message);   // hanya penolakan pasti yang membuang scan
+    throw err;
+  }
   return j.data;
 }
 
@@ -378,7 +455,10 @@ async function doLogin(pin){
 }
 $('#btnLogin').onclick = () => doLogin($('#pin').value.trim());
 $('#pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btnLogin').click(); });
-$('#btnLogout').onclick = () => { store.set('pin', ''); stopCam(); location.reload(); };
+$('#btnLogout').onclick = () => {
+  if (S.queue.length && !confirm(`${S.queue.length} scan belum terkirim. Keluar sekarang? Scan tetap tersimpan di perangkat dan terkirim setelah Anda masuk lagi.`)) return;
+  store.set('pin', ''); stopCam(); location.reload();
+};
 
 async function startApp(){
   store.set('user', S.user);
@@ -389,6 +469,7 @@ async function startApp(){
   await loadSesi();
   updateQueueBanner();
   flush();
+  wakeOn();
 }
 
 /* ============ SESI ============ */
@@ -418,10 +499,11 @@ function applyMode(resetTag){
       : 'Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.';
     refreshProgress(0);
   }
+  if (typeof renderHist === 'function'){ renderHist(); NS.rows = []; NS.sesi = ''; CACHE = {sesi: '', map: {}}; restoreCache(); renderNS(); loadNS(true); }
 }
 $('#selSesi').onchange = e => {
   S.sesiId = e.target.value; store.set('sesiId', S.sesiId); applyMode(true);
-  if (!$('#tab-rekap').hidden) loadRekap(); if (!$('#tab-edit').hidden) loadEdit(); if (!$('#tab-admin').hidden) loadBin();
+  if (!$('#tab-rekap').hidden) loadRekap(); if (!$('#tab-edit').hidden) loadEdit(); if (!$('#tab-admin').hidden){ loadBin(); loadSheetLinks(); renderImport(); }
 };
 $('#inLokasi').oninput = e => { S.lokasi = e.target.value.trim().toUpperCase(); store.set('lokasi', S.lokasi); };
 
@@ -431,11 +513,11 @@ function showTab(name){
     $('#tab-' + t).hidden = t !== name;
     $('#nav-' + t).setAttribute('aria-selected', t === name);
   });
-  if (name !== 'scan') stopCam();
+  if (name !== 'scan'){ stopCam(); wakeOff(); }
   if (name === 'rekap') loadRekap();
   if (name === 'edit') loadEdit();
-  if (name === 'admin'){ loadToko(); loadBin(); }
-  if (name === 'scan') $('#inSku').focus();
+  if (name === 'admin'){ loadToko(); loadBin(); loadSheetLinks(); }
+  if (name === 'scan'){ $('#inSku').focus(); wakeOn(); }
 }
 ['scan', 'rekap', 'edit', 'admin'].forEach(t => $('#nav-' + t).onclick = () => showTab(t));
 
@@ -448,42 +530,129 @@ function submitCode(raw){
   const item = curMode() === 'itemize';
   if (!item && !S.lokasi){ toast('Isi rak / lokasi dulu', true); beep(false); $('#inLokasi').focus(); return; }
   const now = Date.now();
-  if (sku === S.lastCode && now - S.lastAt < CONFIG.SAME_CODE_COOLDOWN_MS) return;
+  if (sku === S.lastCode && now - S.lastAt < (S.cont ? 800 : CONFIG.SAME_CODE_COOLDOWN_MS)) return;
   S.lastCode = sku; S.lastAt = now;
   if (navigator.vibrate) navigator.vibrate(25);      // umpan balik instan, hasil menyusul dari server
 
-  S.queue.push({scan_id: uuid(), sesi_id: S.sesiId, sku, lokasi: item ? '-' : S.lokasi});
+  const id = uuid(), pred = predict(sku, item);
+  S.queue.push({scan_id: id, sesi_id: S.sesiId, sku, lokasi: item ? '-' : S.lokasi, opt: pred ? pred.kind : undefined});
   store.set('queue', S.queue);
-  renderPending(sku);
+  S.lastScanId = id;
+  histPut(S.sesiId, {scan_id: id, sku, nama: pred && pred.r ? pred.r.nama : '', st: pred ? pred.st : '', baru: pred ? pred.baru : true,
+                     qty: pred && pred.r && !item ? pred.r.total_fisik : '', pend: true});
+  if (pred){
+    beep(pred.kind);                                           // bunyi & hasil langsung, server hanya mengonfirmasi
+    if (pred.r) renderResult(pred.r, navigator.onLine ? 'Mengirim…' : 'Tersimpan, dikirim saat ada sinyal'); else renderPending(sku);
+  }else{ if (!navigator.onLine) beep('q'); renderPending(sku); }
   updateQueueBanner();
   flush();
+  return true;
 }
 $('#inSku').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); submitCode($('#inSku').value); $('#inSku').value = ''; } });
 
 function renderPending(sku){
-  const b = $('#tagBox'); b.className = 'tag pending';
-  b.innerHTML = `<div><div class="nm">Mengirim…</div><div class="sk">${esc(sku)}</div></div>`;
+  const b = $('#tagBox'); b.className = 'tag item pending';
+  b.innerHTML = `<div><div class="sk">${esc(sku)}</div><div class="nm">${navigator.onLine ? 'Mengirim…' : 'Tersimpan di perangkat, dikirim saat ada sinyal'}</div></div>`;
 }
+/* ---- Riwayat scan ---- */
+const HIST_MAX = 30;
+S.hist = store.get('hist', {});
+const histStamp = () => { const t = new Date(), z = n => String(n).padStart(2, '0'); return z(t.getHours()) + ':' + z(t.getMinutes()) + ':' + z(t.getSeconds()); };
+function histSave(sesiId){
+  const a = S.hist[sesiId] || []; if (a.length > HIST_MAX) a.length = HIST_MAX;
+  store.set('hist', S.hist);
+  if (sesiId === S.sesiId){ renderHist(); renderNS(); }
+}
+function histPut(sesiId, e){ (S.hist[sesiId] = S.hist[sesiId] || []).unshift(Object.assign({jam: histStamp()}, e)); histSave(sesiId); }
+function histUpdate(sesiId, scanId, patch){
+  const a = S.hist[sesiId] = S.hist[sesiId] || [];
+  let x = a.find(y => y.scan_id === scanId);
+  if (!x){ x = {scan_id: scanId, jam: histStamp()}; a.unshift(x); }
+  Object.assign(x, patch); histSave(sesiId);
+}
+function histDrop(sesiId, scanId){
+  const a = S.hist[sesiId] || [], i = a.findIndex(y => y.scan_id === scanId);
+  if (i >= 0) a.splice(i, 1); histSave(sesiId);
+}
+var NS = {rows: [], sesi: ''}, CACHE = {sesi: '', map: {}};
+function restoreCache(){                       // pakai salinan terakhir di perangkat sampai data segar dari server tiba
+  const id = S.sesiId; if (!id) return;
+  try{
+    const arr = JSON.parse(localStorage.getItem('cache_' + id) || 'null'); if (!arr) return;
+    const map = {}; arr.forEach(a => { map[a[0]] = {nama: a[1], qty_system: a[2], ada: !!a[3], scanned: !!a[4]}; });
+    (S.hist[id] || []).forEach(x => { if (x.baru !== false && map[x.sku]) map[x.sku].scanned = true; });
+    CACHE = {sesi: id, map}; NS.rows = []; 
+  }catch(e){}
+}
+async function loadNS(quiet){
+  if (!S.sesiId){ NS.rows = []; return renderNS(); }
+  const id = S.sesiId; if (!quiet) $('#nsNote').textContent = 'Memuat…';
+  try{
+    const r = await api('rekap', {sesi_id: id});
+    if (id !== S.sesiId) return;
+    const map = {};
+    r.rows.forEach(x => { map[x.sku] = {nama: x.nama, qty_system: x.qty_system, ada: x.status !== 'Tidak ada di system', scanned: x.status !== 'Belum di-scan'}; });
+    CACHE = {sesi: id, map};
+    try{ const arr = Object.keys(map).map(k => [k, map[k].nama, map[k].qty_system, map[k].ada ? 1 : 0, map[k].scanned ? 1 : 0]), js = JSON.stringify(arr); if (js.length < 2500000) localStorage.setItem('cache_' + id, js); }catch(e){}
+    NS.rows = r.rows.filter(x => x.status === 'Belum di-scan'); NS.sesi = id; renderNS();
+  }catch(e){ if (!quiet){ $('#nsNote').textContent = ''; toast(e.message, true); } }
+}
+function renderNS(){
+  const q = $('#nsFind').value.trim().toLowerCase(), MAX = 15;
+  const done = new Set((S.hist[S.sesiId] || []).filter(x => x.baru !== false).map(x => x.sku));
+  const sc = k => CACHE.sesi === S.sesiId && CACHE.map[k] && CACHE.map[k].scanned;
+  const rows = NS.rows.filter(r => !done.has(r.sku) && !sc(r.sku) && (!q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q)));
+  $('#nsList').innerHTML = rows.slice(0, MAX).map(r =>
+    `<li><div class="hs">${esc(r.sku)}<span class="hn">${esc(r.nama)}</span></div>
+     <div class="hr"><button class="btn hx" data-sku="${esc(r.sku)}">Catat</button></div></li>`).join('');
+  $('#nsNote').textContent = NS.sesi !== S.sesiId ? '' : `${rows.length} barang belum discan` + (rows.length > MAX ? `, menampilkan ${MAX} pertama. Ketik untuk mempersempit.` : '') + '. Hasil scan petugas lain muncul setelah Muat ulang.';
+}
+$('#nsBox').addEventListener('toggle', () => { if ($('#nsBox').open && NS.sesi !== S.sesiId) loadNS(); });
+$('#nsReload').onclick = () => loadNS();
+$('#nsFind').oninput = renderNS;
+$('#nsList').onclick = e => {
+  const b = e.target.closest('.hx'); if (!b) return;
+  const sku = b.dataset.sku;
+  if (confirm(`Catat ${sku} sebagai sudah discan (tanpa barcode)?`)) submitCode(sku);
+};
+function histRemove(sesiId, sku, scanId){
+  const a = S.hist[sesiId] || [], i = a.findIndex(x => scanId ? x.scan_id === scanId : x.sku === sku);
+  if (i >= 0){ a.splice(i, 1); store.set('hist', S.hist); }
+  renderHist();
+}
+function renderHist(){
+  const a = S.hist[S.sesiId] || [];
+  $('#histEmpty').hidden = a.length > 0;
+  $('#histList').innerHTML = a.map((x, i) =>
+    `<li><div class="hs">${esc(x.sku)}<span class="hn">${esc(x.nama)}</span></div>
+     <div class="hr">${x.qty !== '' ? '<b>' + esc(x.qty) + '</b> pcs<br>' : ''}${x.pend ? '⏳ ' : ''}${esc(x.st || 'Mengirim…')}<br>${esc(x.jam)}
+     ${x.baru !== false && !x.pend ? `<br><button class="btn danger hx" data-i="${i}">Batalkan</button>` : ''}</div></li>`).join('');
+}
+$('#histList').onclick = e => {
+  const b = e.target.closest('.hx'); if (!b) return;
+  const x = (S.hist[S.sesiId] || [])[Number(b.dataset.i)];
+  if (x && confirm(`Batalkan scan ${x.sku}?`)) undoScan(x);
+};
 function statusChip(total, sys, ada){
   if (!ada) return '<span class="chip unk">? Tidak ada di system</span>';
   if (total === sys) return '<span class="chip ok">✓ Sesuai</span>';
   return total < sys ? `<span class="chip short">▼ Kurang ${sys - total}</span>` : `<span class="chip over">▲ Lebih ${total - sys}</span>`;
 }
 function renderItem(r, note, undone){
-  const b = $('#tagBox'); b.className = 'tag';
+  const b = $('#tagBox'); b.className = 'tag item';
   const chip = undone ? '<span class="chip none">○ Dibatalkan, belum discan</span>'
     : r.ada_di_master === false ? '<span class="chip unk">? Tidak ada di system</span>'
     : r.baru ? '<span class="chip ok">✓ Sudah discan</span>' : '<span class="chip over">⚠ Sudah pernah discan</span>';
-  b.innerHTML = `<div class="nm">${esc(r.nama)}</div><div class="sk">${esc(r.sku)}</div>
+  b.innerHTML = `<div class="sk">${esc(r.sku)}</div><div class="nm">${esc(r.nama)}</div>
     <div class="meta">${chip}${note ? `<span>${esc(note)}</span>` : ''}</div>`;
 }
 function renderResult(r, note, undone){
   if ((r.mode || curMode()) === 'itemize') return renderItem(r, note, undone);
   const b = $('#tagBox'); b.className = 'tag';
   b.innerHTML = `
-    <div class="nm">${esc(r.nama)}</div>
-    <div class="cnt"><span class="big">${r.total_fisik}</span><span class="cap">tersimpan</span></div>
     <div class="sk">${esc(r.sku)}</div>
+    <div class="cnt"><span class="big">${r.total_fisik}</span><span class="cap">tersimpan</span></div>
+    <div class="nm">${esc(r.nama)}</div>
     <div class="meta">${statusChip(r.total_fisik, r.qty_system, r.ada_di_master !== false)}<span>System: <b>${r.qty_system}</b></span>${note ? `<span>${esc(note)}</span>` : ''}
       <button class="btn" id="btnTagEdit" style="min-height:40px;padding:6px 14px">Ubah qty</button></div>`;
   $('#btnTagEdit').onclick = () => openQty(r);
@@ -518,55 +687,94 @@ function scheduleSync(sesiId){                   // perbarui sheet hasil setelah
     try{ await api('syncHasil', {sesi_id: sesiId}); }catch(e){}
   }, 6000);
 }
+const kindOf = v => v.baru === false ? 'dup' : (v.mode === 'itemize' ? !!(v.ada_di_master && v.baru) : !!v.ada_di_master);
+const stText = r => r.ada_di_master === false ? '? Di luar system' : r.baru === false ? '⚠ Sudah pernah' : '✓ Tercatat';
+// Tebakan hasil dari data rekap yang sudah dimuat. Server tetap menjadi penentu dan mengoreksi bila beda.
+function predict(sku, item){
+  if (CACHE.sesi !== S.sesiId) return null;
+  const c = CACHE.map[sku];
+  if (c && c.scanned) return {kind: 'dup', baru: false, st: '⚠ Sudah pernah', r: null};
+  const r = {sku, nama: c ? c.nama : '(Tidak ada di system)', ada_di_master: !!(c && c.ada), qty_system: c ? c.qty_system : 0,
+             total_fisik: c && c.ada ? c.qty_system : 1, baru: true, mode: item ? 'itemize' : 'opname'};
+  CACHE.map[sku] = c || {nama: r.nama, qty_system: 0, ada: false, scanned: false};
+  CACHE.map[sku].scanned = true;
+  return {kind: kindOf(r), baru: true, st: stText(r), r};
+}
+function onScanOk(it, v){
+  S.queue = S.queue.filter(q => q.scan_id !== it.scan_id); store.set('queue', S.queue);
+  if (CACHE.sesi === it.sesi_id){
+    const c = CACHE.map[v.sku] = CACHE.map[v.sku] || {};
+    c.nama = v.nama; c.qty_system = v.qty_system; c.ada = v.ada_di_master !== false; c.scanned = true;
+  }
+  histUpdate(it.sesi_id, it.scan_id, {sku: v.sku, nama: v.nama || '', st: stText(v), baru: v.baru !== false,
+                                      qty: v.mode === 'itemize' ? '' : v.total_fisik, pend: false});
+  const k = kindOf(v);
+  if (it.opt !== k) beep(k);                                     // bunyi hanya jika tebakan awal meleset
+  if (it.scan_id === S.lastScanId || !S.lastScanId){
+    renderResult(v, v.mode === 'itemize' ? (v.baru ? 'Tercatat' : 'Tidak dicatat dua kali')
+                                         : (v.baru ? 'Disimpan otomatis' : 'Sudah pernah discan, qty tidak ditambah'));
+  }
+  scheduleSync(it.sesi_id); updateQueueBanner();
+}
+function onScanErr(it, err){
+  S.queue = S.queue.filter(q => q.scan_id !== it.scan_id); store.set('queue', S.queue);
+  const c = CACHE.sesi === it.sesi_id && CACHE.map[it.sku];
+  if (c && it.opt !== 'dup') c.scanned = false;
+  histDrop(it.sesi_id, it.scan_id);
+  toast(err.message, true); beep(false);
+  if (it.scan_id === S.lastScanId){ $('#tagBox').className = 'tag empty'; $('#tagBox').textContent = 'Scan terakhir ditolak: ' + err.message; }
+  updateQueueBanner();
+}
+let srvWarnAt = 0;
+function srvWarn(msg){                                          // error sementara dari server: scan TETAP di antrean, dicoba lagi
+  if (Date.now() - srvWarnAt < 60000) return;
+  srvWarnAt = Date.now(); toast('Server: ' + msg + '. Scan tetap tersimpan dan dicoba lagi otomatis.', true);
+}
 async function flush(){
-  if (S.flushing) return;
+  if (S.flushing){ if (S.pump) S.pump(); return; }
   S.flushing = true;
+  let net = false;
+  const inflight = new Set();
   try{
-    while (S.queue.length){
-      const batch = S.queue.slice(0, PAR);
-      const res = await Promise.allSettled(batch.map(it => api('scan', it)));
-      let net = false, lastOk = null, lastErr = null;
-      res.forEach((x, i) => {
-        const id = batch[i].scan_id;
-        if (x.status === 'fulfilled'){
-          S.queue = S.queue.filter(q => q.scan_id !== id);
-          lastOk = x.value;
-          beep(x.value.mode === 'itemize' ? (x.value.ada_di_master && x.value.baru) : x.value.ada_di_master);
-        }else if (x.reason instanceof NetError){ net = true; }           // tetap di antrean, coba lagi nanti
-        else{ S.queue = S.queue.filter(q => q.scan_id !== id); lastErr = x.reason; }   // ditolak server: buang & beri tahu
-      });
-      store.set('queue', S.queue);
-      if (lastOk){
-        const r = lastOk;
-        renderResult(r, r.mode === 'itemize' ? (r.baru ? 'Tercatat' : 'Tidak dicatat dua kali')
-                                             : (r.baru ? 'Disimpan otomatis' : 'Sudah pernah discan, qty tidak ditambah'));
-        scheduleSync(batch[0].sesi_id);
-      }
-      if (lastErr){
-        toast(lastErr.message, true); beep(false);
-        if (!lastOk){ $('#tagBox').className = 'tag empty'; $('#tagBox').textContent = 'Scan terakhir ditolak: ' + lastErr.message; }
-      }
-      updateQueueBanner();
-      if (net) break;
-    }
-  } finally { S.flushing = false; updateQueueBanner(); }
+    await new Promise(resolve => {
+      const pump = () => {
+        while (!net && inflight.size < PAR){
+          const it = S.queue.find(q => !inflight.has(q.scan_id));
+          if (!it) break;
+          inflight.add(it.scan_id);
+          api('scan', it)
+            .then(v => onScanOk(it, v), er => { if (er instanceof NetError) net = true; else if (er.retry){ net = true; srvWarn(er.message); } else onScanErr(it, er); })
+            .catch(() => {})
+            .finally(() => { inflight.delete(it.scan_id); pump(); });
+        }
+        if (!inflight.size) resolve();
+      };
+      S.pump = pump; pump();
+    });
+  } finally { S.flushing = false; S.pump = null; updateQueueBanner(); }
+  if (!net && S.queue.length) flush();
 }
 function updateQueueBanner(){
-  const b = $('#queueBanner'), n = S.queue.length;
-  b.hidden = n === 0;
+  const b = $('#queueBanner'), n = S.queue.length, off = !navigator.onLine;
+  b.hidden = n === 0 && !off;
   if (n) b.textContent = `${n} scan menunggu terkirim. Tersimpan di perangkat dan dikirim otomatis saat ada koneksi.`;
+  else if (off) b.textContent = 'Mode offline. Scan disimpan di perangkat dan dikirim otomatis saat sinyal kembali.';
 }
-window.addEventListener('online', flush);
+window.addEventListener('online', () => { updateQueueBanner(); flush(); });
+window.addEventListener('offline', updateQueueBanner);
 setInterval(() => { if (S.queue.length) flush(); }, 15000);
 
-$('#btnUndo').onclick = async () => {
+$('#btnUndo').onclick = () => undoScan((S.hist[S.sesiId] || []).find(x => x.baru !== false && !x.pend));   // scan terbaru yang benar-benar tercatat (bukan duplikat)
+async function undoScan(top){
   if (!S.sesiId) return toast('Pilih sesi dulu', true);
   if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
   try{
-    const r = await api('undo', {sesi_id: S.sesiId});
-    renderResult(r, r.mode === 'itemize' ? 'Scan dibatalkan' : `Dibatalkan: −${r.qty}`, true); toast('Scan terakhir dibatalkan'); scheduleSync(S.sesiId);
+    const r = await api('undo', {sesi_id: S.sesiId, scan_id: top ? top.scan_id : '', sku: top ? top.sku : ''});
+    histRemove(S.sesiId, r.sku, top && top.scan_id);
+    if (CACHE.sesi === S.sesiId && CACHE.map[r.sku]){ CACHE.map[r.sku].scanned = r.total_fisik > 0; renderNS(); }
+    renderResult(r, r.mode === 'itemize' ? 'Scan dibatalkan' : `Dibatalkan: −${r.qty}`, true); toast('Scan dibatalkan'); scheduleSync(S.sesiId);
   }catch(e){ toast(e.message, true); }
-};
+}
 
 /* ---- Kamera ---- */
 async function startCam(){
@@ -578,17 +786,49 @@ async function startCam(){
     experimentalFeatures: {useBarCodeDetectorIfSupported: true}, verbose: false
   });
   try{
-    await S.cam.start({facingMode: 'environment'}, {fps: 10, qrbox: {width: 280, height: 140}}, code => submitCode(code), () => {});
+    await S.cam.start({facingMode: 'environment'}, {fps: S.cont ? 20 : 10, disableFlip: true, qrbox: (w, h) => ({width: Math.floor(w * 0.9), height: Math.floor(Math.min(h * 0.65, 200))})}, code => { if (S.paused) return; if (submitCode(code) && !S.cont) pauseCam(); }, () => {});
     $('#btnCam').textContent = 'Tutup kamera';
+    try{
+      S.torch = S.cam.getRunningTrackCameraCapabilities().torchFeature(); S.torchOn = false;
+      $('#btnTorch').hidden = !S.torch.isSupported(); $('#btnTorch').textContent = '🔦 Senter: Mati';
+    }catch(e){ $('#btnTorch').hidden = true; }
   }catch(e){
-    $('#reader').hidden = true; S.cam = null;
-    toast('Kamera tidak bisa dibuka. Izinkan akses kamera atau pakai scanner/ketik manual.', true);
+    $('#reader').hidden = true; S.cam = null; $('#btnNext').hidden = true;
+    const why = !window.isSecureContext ? 'Halaman harus dibuka lewat alamat https:// (bukan file lokal)'
+      : String((e && (e.message || e.name)) || e).slice(0, 80);
+    toast('Kamera tidak bisa dibuka. ' + why, true);
   }
 }
 async function stopCam(){
   if (S.cam){ try{ await S.cam.stop(); S.cam.clear(); }catch(e){} S.cam = null; }
   $('#reader').hidden = true; $('#btnCam').textContent = 'Buka kamera';
+  $('#btnTorch').hidden = true; S.torch = null; S.torchOn = false; S.paused = false; $('#btnNext').hidden = true;
 }
+$('#btnTorch').onclick = async () => {
+  if (!S.torch) return;
+  try{ await S.torch.apply(!S.torchOn); S.torchOn = !S.torchOn; $('#btnTorch').textContent = '🔦 Senter: ' + (S.torchOn ? 'Nyala' : 'Mati'); }
+  catch(e){ toast('Senter tidak bisa dinyalakan di perangkat ini', true); }
+};
+S.cont = store.get('cont', true); S.paused = false;
+function paintMode(){ $('#btnMode').textContent = S.cont ? '📷 Kamera: Beruntun' : '📷 Kamera: Satu-satu'; }
+function pauseCam(){ try{ S.cam.pause(true); S.paused = true; $('#btnNext').hidden = false; }catch(e){} }
+function resumeCam(){ try{ S.cam.resume(); }catch(e){} S.paused = false; $('#btnNext').hidden = true; $('#inSku').value = ''; }
+$('#btnNext').onclick = resumeCam;
+$('#btnMode').onclick = async () => {
+  S.cont = !S.cont; store.set('cont', S.cont); paintMode();
+  toast(S.cont ? 'Beruntun: kamera terus aktif, jeda kode sama 0,8 detik' : 'Satu-satu: kamera berhenti setelah tiap scan, tekan Scan berikutnya');
+  if (S.cam){ await stopCam(); startCam(); }
+};
+paintMode();
+function paintSound(){ $('#btnSound').textContent = SOUND ? '🔊 Suara: Aktif' : '🔇 Suara: Mati'; }
+$('#btnSound').onclick = () => { SOUND = !SOUND; store.set('sound', SOUND); paintSound(); if (SOUND) beep(true); };
+paintSound();
+
+/* Layar tetap menyala selama di menu Scan */
+let wake = null;
+async function wakeOn(){ try{ if (navigator.wakeLock && !wake){ wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } }catch(e){} }
+function wakeOff(){ try{ if (wake) wake.release(); }catch(e){} wake = null; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden && !$('#tab-scan').hidden) wakeOn(); });
 $('#btnCam').onclick = () => S.cam ? stopCam() : startCam();
 
 /* ============ REKAP ============ */
@@ -636,7 +876,7 @@ function renderRekap(){
   const MAX = 300, shown = rows.slice(0, MAX), cols = item ? 2 : 5;
   $('#rekapBody').innerHTML = shown.length ? shown.map(r => {
     const st = ST[r.status], chip = `<span class="chip ${st.cls}">${st.icon} ${esc(st.label)}</span>`;
-    const nm = `<td>${esc(r.nama)}<small>${esc(r.sku)}${!item && r.lokasi ? ' · ' + esc(r.lokasi) : ''}</small></td>`;
+    const nm = `<td><span class="rsku">${esc(r.sku)}</span><small>${esc(r.nama)}${!item && r.lokasi ? ' · ' + esc(r.lokasi) : ''}</small></td>`;
     if (item) return `<tr>${nm}<td>${chip}${r.petugas ? `<small>${esc(r.petugas)} · ${esc(r.waktu)}</small>` : ''}</td></tr>`;
     return `<tr>${nm}<td class="n">${r.qty_system}</td><td class="n">${r.qty_fisik}</td>
       <td class="n"><b>${r.selisih > 0 ? '+' : ''}${r.selisih}</b></td><td>${chip}</td></tr>`;
@@ -739,6 +979,17 @@ $('#btnSesiTutup').onclick = async () => {
   catch(e){ toast(e.message, true); }
 };
 
+async function loadSheetLinks(){
+  if (!S.user || S.user.role !== 'admin') return;
+  const a = $('#lnkSheet'), h = $('#lnkHasil'), m = $('#lnkMsg');
+  h.hidden = true; m.textContent = 'Memuat link…';
+  try{
+    const r = await api('sheetUrl', {sesi_id: S.sesiId});
+    a.href = r.url; a.hidden = !r.url;
+    if (r.hasil){ h.href = r.hasil; h.hidden = false; }
+    m.textContent = '';
+  }catch(e){ a.hidden = true; m.textContent = 'Link belum bisa dimuat: ' + e.message; }
+}
 async function loadToko(){
   if (!S.user || S.user.role !== 'admin') return;
   try{ const t = await api('getToko'); $('#inTokoKode').value = t.kode; $('#inTokoNama').value = t.nama; }catch(e){}
@@ -772,6 +1023,7 @@ $('#btnReset').onclick = async () => {
   if (!confirm('Reset hasil scan sesi ini dan mulai dari awal?\n\nData saat ini dipindah ke recycle bin dan masih bisa dipulihkan.')) return;
   try{
     const r = await api('resetSesi', {sesi_id: S.sesiId});
+    delete S.hist[S.sesiId]; store.set('hist', S.hist); try{ localStorage.removeItem('cache_' + S.sesiId); }catch(e){}
     toast(`Direset. ${r.sku} SKU dipindah ke recycle bin`);
     applyMode(true); loadBin(); if (!$('#tab-rekap').hidden) loadRekap();
   }catch(e){ toast(e.message, true); }
@@ -797,6 +1049,7 @@ $('#btnSesiHapus').onclick = async () => {
   try{
     await api('deleteSesi', {sesi_id: id});
     S.queue = S.queue.filter(q => q.sesi_id !== id); store.set('queue', S.queue); updateQueueBanner();
+    delete S.hist[id]; store.set('hist', S.hist); try{ localStorage.removeItem('cache_' + id); }catch(e){}
     S.sesiId = ''; S.rekap = [];
     await loadSesi(); loadBin();
     toast('Sesi dan datanya dihapus');
@@ -979,13 +1232,101 @@ $('#btnUpload').onclick = async () => {
       $('#upMsg').textContent = `Selesai: ${data.length} baris diupload.`;
       refreshProgress(0);
     }
-    toast('Data system berhasil diupload');
+    toast('Data system berhasil diupload'); loadNS(true);
   }catch(e){ toast(e.message, true); $('#upMsg').textContent = 'Upload terhenti: ' + e.message; }
   finally{ $('#btnUpload').disabled = false; }
 };
 
+/* ============ IMPORT HASIL SCAN (TXT) ============ */
+const IMP = {text: '', rows: []};
+function parseImport(text, item){
+  const rows = new Map(), bad = []; let total = 0, dupe = 0, seen = 0;
+  text.replace(/^\uFEFF/, '').split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(); if (!line) return;
+    if (seen++ === 0 && /^(shelf|rak|lokasi|sku|barcode)\b/i.test(line)) return;          // baris judul
+    const d = ['\t', ';', '|', ','].find(c => line.includes(c));
+    const c = (d ? line.split(d) : [line]).map(x => x.trim());
+    let shelf = '', sku = '', qty = null, err = '';
+    if (item) sku = c.length === 1 ? c[0] : c[1];                                          // 2 kolom: rak,SKU -> ambil SKU
+    else if (c.length < 2) err = 'tanpa rak';
+    else{
+      shelf = c[0]; sku = c[1];
+      if (c.length >= 3 && c[2] !== ''){ if (/^\d{1,4}$/.test(c[2])) qty = Number(c[2]); else err = 'qty harus angka 0-9999'; }
+      if (!shelf) err = 'rak kosong';
+    }
+    if (!err && !sku) err = 'SKU kosong';
+    if (err){ bad.push(`Baris ${i + 1}: ${err}`); return; }
+    total++;
+    const r = rows.get(sku);
+    if (!r) rows.set(sku, {sku, shelves: shelf ? [shelf] : [], qty});
+    else{
+      dupe++;
+      if (shelf && !r.shelves.includes(shelf)) r.shelves.push(shelf);
+      if (qty !== null) r.qty = (r.qty === null ? 0 : r.qty) + qty;
+    }
+  });
+  const ok = [];
+  rows.forEach(r => { if (r.qty !== null && r.qty > 9999) bad.push(`SKU ${r.sku}: total qty lebih dari 9999`); else ok.push(r); });
+  return {rows: ok, bad, total, dupe};
+}
+function renderImport(){
+  const info = $('#impInfo'), btn = $('#btnImport'), prev = $('#impPrev');
+  btn.disabled = true; prev.innerHTML = ''; IMP.rows = [];
+  if (!IMP.text){ info.textContent = ''; return; }
+  const c = curSesi();
+  if (!c){ info.textContent = 'Pilih sesi dulu.'; return; }
+  const item = curMode() === 'itemize', p = parseImport(IMP.text, item);
+  IMP.rows = p.rows;
+  info.innerHTML = `Sesi: <b>${esc(c.nama_sesi)}</b> (${item ? 'Itemize' : 'Stock take'}). ${p.total} baris terbaca menjadi <b>${p.rows.length}</b> SKU`
+    + (p.dupe ? `, ${p.dupe} baris kembar digabung` : '')
+    + (p.bad.length ? `. <span style="color:var(--short)">${p.bad.length} tidak valid: ${esc(p.bad.slice(0, 3).join('; '))}${p.bad.length > 3 ? '…' : ''}</span>` : '')
+    + (c.status !== 'aktif' ? '. <b>Sesi sudah selesai, tidak bisa import.</b>' : '');
+  prev.innerHTML = p.rows.slice(0, 5).map(r =>
+    `<li><div class="hs">${esc(r.sku)}<span class="hn">${esc(r.shelves.join(', ') || '-')}</span></div><div class="hr">${item ? '' : (r.qty === null ? 'qty system' : '<b>' + r.qty + '</b> pcs')}</div></li>`).join('');
+  btn.disabled = !p.rows.length || c.status !== 'aktif';
+}
+$('#fileImport').onchange = async () => {
+  const f = $('#fileImport').files[0]; $('#impMsg').textContent = '';
+  IMP.text = f ? await f.text() : ''; renderImport();
+};
+$('#btnImport').onclick = async () => {
+  const c = curSesi(), rows = IMP.rows;
+  if (!c || !rows.length) return;
+  if (c.status !== 'aktif') return toast('Sesi sudah selesai, tidak bisa import', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  if (!confirm(`Import ${rows.length} SKU ke sesi "${c.nama_sesi}"?\n\nSKU yang sudah ada di sesi ini dilewati.`)) return;
+  const id = S.sesiId, item = curMode() === 'itemize', CH = 300, bar = $('#impBar'), msg = $('#impMsg');
+  let masuk = 0, skip = [], made = [], fail = '';
+  $('#btnImport').disabled = true; bar.hidden = false; bar.firstElementChild.style.width = '0%';
+  try{
+    for (let i = 0; i < rows.length; i += CH){
+      const part = rows.slice(i, i + CH).map(r => ({scan_id: uuid(), sku: r.sku, lokasi: r.shelves.join(', '), qty: r.qty}));
+      const res = await api('importScans', {sesi_id: id, rows: part});
+      masuk += res.masuk; skip = skip.concat(res.dilewati); made = made.concat(res.dibuat);
+      bar.firstElementChild.style.width = Math.min(100, Math.round((i + CH) / rows.length * 100)) + '%';
+      msg.textContent = `Terkirim ${Math.min(i + CH, rows.length)} dari ${rows.length} SKU…`;
+    }
+  }catch(e){ fail = e.message; }
+  finally{
+    if (made.length){                                            // tampilkan di Riwayat scan (30 terbaru) & perbarui cache
+      const a = S.hist[id] = S.hist[id] || [];
+      made.forEach(x => a.unshift({scan_id: x.scan_id, sku: x.sku, nama: x.nama, st: x.ada ? '⬆ Import' : '? Di luar system', baru: true,
+                                   qty: item ? '' : x.qty, jam: histStamp(), pend: false}));
+      histSave(id);
+      if (CACHE.sesi === id) made.forEach(x => { if (CACHE.map[x.sku]) CACHE.map[x.sku].scanned = true; });
+      renderNS(); scheduleSync(id); loadNS(true);
+    }
+    $('#btnImport').disabled = false; bar.hidden = true;
+  }
+  const luar = made.filter(x => !x.ada).length;
+  msg.textContent = (fail ? `Berhenti: ${fail}. ` : 'Selesai. ') + `${masuk} SKU masuk` + (luar ? ` (${luar} di luar system)` : '')
+    + `, ${skip.length} dilewati karena sudah ada di sesi` + (skip.length ? ': ' + skip.slice(0, 10).join(', ') + (skip.length > 10 ? '…' : '') : '')
+    + (fail ? '. Ulangi import: SKU yang sudah masuk akan dilewati.' : '.');
+  toast(fail ? 'Import berhenti, lihat keterangan' : `Import selesai: ${masuk} SKU masuk`, !!fail);
+};
+
 /* ============ MULAI ============ */
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { /* opsional: tambahkan sw.js untuk mode offline penuh */ }
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});   // butuh file sw.js di folder yang sama; tanpa itu aplikasi tetap jalan seperti biasa
 if (S.pin) doLogin(S.pin); else showLogin();
 </script>
 </body>
