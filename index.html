@@ -190,7 +190,7 @@
           <button id="btnNext" class="btn primary block" style="margin-bottom:10px" hidden>Scan berikutnya</button>
           <label for="inSku">Ketik SKU atau gunakan scanner (tekan Enter)</label>
           <div class="row">
-            <input id="inSku" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done">
+            <input id="inSku" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
             <button id="btnCam" class="btn primary" style="flex:none">Buka kamera</button>
           </div>
           <div class="row" style="margin-top:8px;align-items:stretch;flex-wrap:wrap">
@@ -548,7 +548,59 @@ function submitCode(raw){
   flush();
   return true;
 }
-$('#inSku').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); submitCode($('#inSku').value); $('#inSku').value = ''; } });
+/* ---- Scanner fisik (USB/Bluetooth, mode keyboard) ----
+   Scanner mengetik seperti keyboard lalu menekan Enter (atau Tab, atau tanpa akhiran).
+   Perbaikan: (1) Enter/Tab sama-sama dianggap akhir scan, (2) scan tetap masuk walau fokus
+   sedang di kolom lain / tidak di mana-mana, (3) scanner tanpa akhiran dikirim otomatis
+   setelah jeda singkat, (4) kolom SKU selalu mengambil fokus kembali. */
+const SCANNER = {gap: 60, idle: 120, min: 3};     // ms antar-ketukan dianggap scanner, jeda akhir, panjang minimal
+function sendSku(v){ const x = String(v || '').trim(); $('#inSku').value = ''; if (x) submitCode(x); }
+const scanOn = () => !$('#tab-scan').hidden && !$('#app').hidden;
+let sBuf = '', sLast = 0, sTimer = 0, sLeak = null;
+function sFlush(){ clearTimeout(sTimer); const v = sBuf; sBuf = ''; if (v.length >= SCANNER.min) sendSku(v); else if (v) $('#inSku').value = v; }
+document.addEventListener('keydown', e => {
+  if (!scanOn() || e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target, tag = t && t.tagName, isSku = t && t.id === 'inSku';
+  const editable = tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && !isSku);
+  const now = Date.now(), fast = now - sLast < SCANNER.gap;
+  if (e.key === 'Enter' || e.key === 'Tab'){
+    if (sBuf){ e.preventDefault(); sFlush(); sLast = 0; return; }                       // akhir scan
+    if (isSku){ e.preventDefault(); sendSku($('#inSku').value); return; }               // ketik manual + Enter
+    if (t && t.id === 'inLokasi' && e.key === 'Enter'){ e.preventDefault(); $('#inSku').focus(); }
+    return;
+  }
+  if (e.key.length !== 1) return;                                                        // abaikan Shift, panah, dll.
+  if (isSku){ sLast = now; return; }                                                     // normal: biarkan masuk ke kolom SKU
+  if (editable && !fast && !sBuf){                                                       // bisa ketikan manual, bisa karakter pertama scanner
+    sLeak = {el: t, val: t.value, ch: e.key}; sLast = now; return;
+  }
+  if (!fast) sBuf = '';
+  if (sLeak && fast && !sBuf){                                                           // ternyata scanner: tarik kembali karakter pertama dari kolom itu
+    sLeak.el.value = sLeak.val; sBuf = sLeak.ch;
+    try{ sLeak.el.dispatchEvent(new Event('input', {bubbles: true})); }catch(_){}
+  }
+  sLeak = null;
+  e.preventDefault();
+  sBuf += e.key; sLast = now;
+  clearTimeout(sTimer); sTimer = setTimeout(sFlush, SCANNER.idle);
+}, true);
+// Scanner tanpa akhiran yang mengetik langsung ke kolom SKU: kirim setelah jeda
+let skuTimer = 0, skuFirst = 0, skuLen = 0;
+$('#inSku').addEventListener('input', () => {
+  const el = $('#inSku'), n = el.value.length, now = Date.now();
+  if (n <= 1){ skuFirst = now; }
+  skuLen = n; clearTimeout(skuTimer);
+  const burst = n >= SCANNER.min && (now - skuFirst) / n < SCANNER.gap;                  // rata-rata kecepatan ketik = scanner
+  if (burst) skuTimer = setTimeout(() => { if ($('#inSku').value.length === skuLen) sendSku($('#inSku').value); }, SCANNER.idle + 80);
+});
+// Fokus kembali ke kolom SKU setelah menyentuh area netral / menutup dialog
+document.addEventListener('click', e => {
+  if (!scanOn()) return;
+  if (e.target.closest('input, select, textarea, label, a, summary, details')) return;
+  setTimeout(() => { const a = document.activeElement; if (!a || a === document.body || a.tagName === 'BUTTON') { try{ $('#inSku').focus({preventScroll: true}); }catch(_){} } }, 0);
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && scanOn()) $('#inSku').focus({preventScroll: true}); });
+window.addEventListener('focus', () => { if (scanOn()) $('#inSku').focus({preventScroll: true}); });
 
 function renderPending(sku){
   const b = $('#tagBox'); b.className = 'tag item pending';
