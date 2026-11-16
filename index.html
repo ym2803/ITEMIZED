@@ -3,125 +3,125 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#12263A">
+<meta name="theme-color" content="#4834D4">
 <title>ITEMIZED</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+  /* Tema disamakan dengan aplikasi Android: ungu #4834D4, kartu lembut, sudut membulat, tombol pill */
   :root{
-    --ink:#12263A; --ink-2:#4A5B6C; --paper:#F4F6F8; --card:#FFFFFF; --line:#D5DBE1;
-    --label:#FFD43B; --ok:#1B7F52; --short:#B8322A; --over:#9A5B00; --unk:#5B3FA8;
-    --head:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
-    --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --pri:#4834D4; --pri-dark:#2D1F7A; --soft:#F5F3FF; --stroke:#E4DEFA; --chip:#EDE9FE; --sub:#7A6FCB;
+    --ink:#1A1A2E; --ink-2:#5B5878; --paper:#FFFFFF; --card:#F5F3FF; --line:#E4DEFA;
+    --label:#EDE9FE; --ok:#1B7F52; --short:#B8322A; --over:#9A5B00; --unk:#5B3FA8;
+    --head:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{font-family:var(--body);color:var(--ink);background:var(--paper);font-size:16px;line-height:1.45;
        padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
   [hidden]{display:none !important}
-  h1,h2,h3{font-family:var(--head);margin:0;line-height:1.1}
+  h1,h2,h3{font-family:var(--head);margin:0;line-height:1.15}
   button,input,select{font:inherit;color:inherit}
-  :focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  :focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 
   .wrap{max-width:720px;margin:0 auto;padding:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
-  .card h2{font-size:20px;margin-bottom:10px}
-  label{display:block;font-weight:500;font-size:14px;color:var(--ink-2);margin-bottom:4px}
+  .card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:16px;margin-bottom:12px}
+  .card h2{font-size:18px;font-weight:700;margin-bottom:10px}
+  label{display:block;font-weight:600;font-size:13px;color:var(--sub);margin-bottom:4px}
   input[type=text],input[type=password],input[type=number],input[type=search],select{
-    width:100%;min-height:48px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
-  input:focus,select:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px rgba(18,38,58,.15)}
+    width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--stroke);border-radius:14px;background:#fff}
+  input:focus,select:focus{border-color:var(--pri);outline:none;box-shadow:0 0 0 3px rgba(72,52,212,.15)}
   .row{display:flex;gap:8px;align-items:end}
   .row>*{flex:1}
   .grow{flex:1}
-  .btn{min-height:48px;padding:10px 16px;border-radius:8px;border:1.5px solid var(--ink);background:#fff;font-weight:600;cursor:pointer}
-  .btn.primary{background:var(--ink);color:#fff}
-  .btn.danger{border-color:var(--short);color:var(--short)}
+  .btn{min-height:48px;padding:10px 16px;border-radius:18px;border:0;background:var(--chip);color:var(--pri);font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--pri);color:#fff}
+  .btn.danger{background:#FDECEA;color:var(--short)}
   .btn.block{width:100%}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .muted{color:var(--ink-2);font-size:14px}
 
   /* Login */
   .login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:400px;margin:0 auto;padding:24px}
-  .login h1{font-size:44px;margin-bottom:6px}
+  .login h1{font-size:40px;margin-bottom:6px;color:var(--pri);font-weight:800}
   .login p{margin:0 0 20px;color:var(--ink-2)}
 
-  /* Header */
-  .top{background:var(--ink);color:#fff;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  /* Header: ungu dengan lengkung bawah seperti header Android */
+  .top{background:var(--pri);color:#fff;padding:14px 16px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));
+       border-radius:0 0 28px 28px;box-shadow:0 4px 12px rgba(72,52,212,.25)}
   .top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .top h1{font-size:24px}
-  .top .who{font-size:14px;opacity:.85;text-align:right}
-  .top button{background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;padding:0;font-size:14px}
+  .top h1{font-size:22px;font-weight:800;letter-spacing:.02em}
+  .top .who{font-size:14px;opacity:.9;text-align:right}
+  .top button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:12px;cursor:pointer;padding:4px 12px;font-size:13px;margin-top:2px}
   .banner{background:#FFF3C4;border-bottom:1px solid #E5C95A;padding:8px 16px;font-size:14px;text-align:center}
 
   /* Tab bar */
-  .tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;
-        padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-  .tabs button{flex:1;min-height:56px;border:0;background:none;font-family:var(--head);font-size:18px;font-weight:600;color:var(--ink-2);cursor:pointer}
-  .tabs button[aria-selected=true]{color:var(--ink);box-shadow:inset 0 4px 0 var(--label)}
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--stroke);display:flex;
+        padding-bottom:env(safe-area-inset-bottom,0px);z-index:5;box-shadow:0 -4px 12px rgba(72,52,212,.08)}
+  .tabs button{flex:1;min-height:56px;border:0;background:none;font-size:15px;font-weight:700;color:var(--sub);cursor:pointer}
+  .tabs button[aria-selected=true]{color:var(--pri);box-shadow:inset 0 3px 0 var(--pri);background:var(--soft)}
 
   /* Scan */
-  .stick{position:sticky;top:0;z-index:4;background:var(--paper);padding:8px 0 10px;margin-top:-8px;box-shadow:0 6px 8px -6px rgba(18,38,58,.35)}
+  .stick{position:sticky;top:0;z-index:4;background:var(--paper);padding:8px 0 10px;margin-top:-8px;box-shadow:0 6px 8px -6px rgba(72,52,212,.3)}
   .stick .tag{margin-bottom:8px}
   .stick .row{align-items:stretch}
-  #reader{width:100%;max-height:220px;border-radius:8px;overflow:hidden;background:#000;min-height:0;margin-bottom:10px}
-  #reader video{border-radius:8px}
+  #reader{width:100%;max-height:220px;border-radius:16px;overflow:hidden;background:#000;min-height:0;margin-bottom:10px}
+  #reader video{border-radius:16px}
   .qtybox{display:flex;align-items:stretch;gap:0}
-  .qtybox button{width:52px;min-height:48px;border:1.5px solid var(--line);background:#fff;font-size:22px;font-weight:600;cursor:pointer}
-  .qtybox button:first-child{border-radius:8px 0 0 8px}
-  .qtybox button:last-child{border-radius:0 8px 8px 0}
+  .qtybox button{width:52px;min-height:48px;border:1px solid var(--stroke);background:var(--chip);color:var(--pri);font-size:22px;font-weight:700;cursor:pointer}
+  .qtybox button:first-child{border-radius:14px 0 0 14px}
+  .qtybox button:last-child{border-radius:0 14px 14px 0}
   .qtybox input{border-radius:0;text-align:center;border-left:0;border-right:0;min-width:0}
 
-  /* Label rak: satu-satunya elemen yang menonjol */
-  .tag{background:var(--label);border-radius:10px;padding:16px 18px;margin-bottom:12px;border-bottom:5px solid var(--ink);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:end}
-  .tag .sk{grid-column:1;grid-row:1;min-width:0;font-family:var(--head);font-weight:700;font-size:26px;line-height:1.1;letter-spacing:.01em;overflow-wrap:anywhere}
+  /* Kartu hasil scan */
+  .tag{background:var(--label);border:1px solid var(--stroke);border-radius:16px;padding:16px 18px;margin-bottom:12px;border-bottom:5px solid var(--pri);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:end}
+  .tag .sk{grid-column:1;grid-row:1;min-width:0;font-family:var(--head);font-weight:800;font-size:24px;line-height:1.1;letter-spacing:.01em;overflow-wrap:anywhere;color:var(--pri-dark)}
   .tag .nm{grid-column:1;grid-row:2;min-width:0;font-size:15px;font-weight:500;color:var(--ink-2);line-height:1.25}
   .tag.item{display:block}
   .tag.item .sk{margin-bottom:4px}
   .hist{list-style:none;margin:0;padding:0}
-  .hist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .hist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--stroke)}
   .hist li:last-child{border-bottom:0}
-  .hist .hs{font-family:var(--head);font-weight:700;font-size:20px;line-height:1.1;word-break:break-all}
+  .hist .hs{font-family:var(--head);font-weight:700;font-size:19px;line-height:1.1;word-break:break-all}
   .hist .hn{display:block;font-size:13px;color:var(--ink-2);font-weight:400;font-family:var(--body)}
-  .hist .hx{min-height:34px;padding:2px 10px;font-size:13px;margin-top:4px}
+  .hist .hx{min-height:34px;padding:2px 12px;font-size:13px;margin-top:4px;border-radius:14px}
   .hist .hr{text-align:right;flex:none;font-size:13px;color:var(--ink-2)}
   .tag .cnt{grid-row:1/3;grid-column:2;text-align:right}
-  .tag .big{font-family:var(--head);font-weight:700;font-size:72px;line-height:.9;display:block}
-  .tag .cap{font-size:13px;font-weight:600}
+  .tag .big{font-family:var(--head);font-weight:800;font-size:68px;line-height:.9;display:block;color:var(--pri)}
+  .tag .cap{font-size:13px;font-weight:600;color:var(--sub)}
   .tag .meta{grid-column:1/3;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:15px}
-  .tag.empty{background:#fff;border:1.5px dashed var(--line);border-bottom:1.5px dashed var(--line);display:block;color:var(--ink-2)}
+  .tag.empty{background:#fff;border:1.5px dashed var(--stroke);border-bottom:1.5px dashed var(--stroke);display:block;color:var(--ink-2)}
   .tag.pending{opacity:.7}
 
-  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-weight:600;font-size:14px;background:#fff;border:1.5px solid currentColor}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-weight:700;font-size:14px;background:#fff;border:1.5px solid currentColor}
   .chip.none{color:var(--ink-2)} .chip.ok{color:var(--ok)} .chip.short{color:var(--short)} .chip.over{color:var(--over)} .chip.unk{color:var(--unk)}
 
   /* Rekap */
   .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px}
-  .sum button{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer}
-  .sum button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 -4px 0 var(--label)}
-  .sum b{font-family:var(--head);font-size:30px;display:block;line-height:1}
-  .sum span{font-size:13px;color:var(--ink-2)}
-  .tbl{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .sum button{text-align:left;background:#fff;border:1px solid var(--stroke);border-radius:16px;padding:10px 12px;cursor:pointer}
+  .sum button[aria-pressed=true]{border-color:var(--pri);background:var(--chip);box-shadow:inset 0 -4px 0 var(--pri)}
+  .sum b{font-family:var(--head);font-size:28px;display:block;line-height:1;color:var(--pri-dark)}
+  .sum span{font-size:13px;color:var(--sub)}
+  .tbl{overflow-x:auto;background:#fff;border:1px solid var(--stroke);border-radius:16px}
   table{border-collapse:collapse;width:100%;font-size:15px}
-  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
-  th{font-family:var(--head);font-size:15px;background:#EEF1F4;position:sticky;top:0}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--stroke);vertical-align:top}
+  th{font-family:var(--head);font-size:14px;background:var(--chip);color:var(--pri-dark);position:sticky;top:0}
   td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   td small{display:block;color:var(--ink-2)}
-  td .rsku{display:block;font-family:var(--head);font-weight:700;font-size:19px;line-height:1.15;overflow-wrap:anywhere}
+  td .rsku{display:block;font-family:var(--head);font-weight:700;font-size:18px;line-height:1.15;overflow-wrap:anywhere}
   td .rsku+small{font-size:13px;margin-top:2px}
   tr:last-child td{border-bottom:0}
 
   .toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
-         background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;max-width:90%;z-index:9;font-size:15px}
+         background:var(--pri-dark);color:#fff;padding:10px 16px;border-radius:14px;max-width:90%;z-index:9;font-size:15px}
   .toast.err{background:var(--short)}
-  dialog{border:1px solid var(--line);border-radius:12px;padding:16px;width:min(92vw,380px);background:var(--card);color:var(--ink)}
-  dialog::backdrop{background:rgba(0,0,0,.55)}
-  .progress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}
-  .progress i{display:block;height:100%;background:var(--ink);width:0;transition:width .3s}
+  dialog{border:1px solid var(--stroke);border-radius:20px;padding:18px;width:min(92vw,380px);background:#fff;color:var(--ink)}
+  dialog::backdrop{background:rgba(26,26,46,.55)}
+  .progress{height:8px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:8px}
+  .progress i{display:block;height:100%;background:var(--pri);width:0;transition:width .3s}
   .prog .progtop{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-  .prog .progtop b{font-family:var(--head);font-size:34px;line-height:1}
+  .prog .progtop b{font-family:var(--head);font-size:32px;line-height:1;color:var(--pri)}
   .prog .progress{height:12px;margin:8px 0 12px}
   .progrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .progrow b{font-family:var(--head);font-size:24px;display:block;line-height:1}
@@ -133,11 +133,12 @@
   .mapgrid.one{grid-template-columns:1fr}
   .mapgrid select{min-height:44px}
   .chk{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink);margin:12px 0 0}
-  .chk input{width:22px;height:22px;flex:none}
-  .pvwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+  .chk input{width:22px;height:22px;flex:none;accent-color:var(--pri)}
+  .pvwrap{overflow-x:auto;border:1px solid var(--stroke);border-radius:14px;margin-top:8px}
   .pv{border-collapse:collapse;width:100%;font-size:13px}
-  .pv th,.pv td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
-  .pv th{background:var(--paper);font-family:var(--head);font-weight:600}
+  .pv th,.pv td{padding:6px 8px;border-bottom:1px solid var(--stroke);text-align:left;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+  .pv th{background:var(--chip);font-family:var(--head);font-weight:600}
+  details>summary{color:var(--pri-dark)}
   @media(max-width:420px){.mapgrid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -208,7 +209,7 @@
         <p id="histEmpty" class="muted" style="margin:0">Belum ada scan di sesi ini.</p>
       </div>
       <details id="nsBox" class="card">
-        <summary style="font-family:var(--head);font-weight:700;font-size:20px;cursor:pointer">Cari barang belum discan</summary>
+        <summary style="font-family:var(--head);font-weight:700;font-size:18px;cursor:pointer">Cari barang belum discan</summary>
         <div style="height:10px"></div>
         <div class="row" style="align-items:stretch">
           <input id="nsFind" type="search" placeholder="SKU atau nama barang">
@@ -367,7 +368,9 @@
 <script>
 /* ============ KONFIGURASI ============ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzWg2OT0Di4t9MslzX4grJorFyAz-BDwcUxetq9M_OXkQyoZhvESD_tgvbmojbTzw/exec',   // URL hasil Deploy > Web app (berakhiran /exec)
+  // Di aplikasi Android: URL diambil dari menu Itemize > Setting Google Sheet (AndroidItemize.getApiUrl).
+  // Di browser biasa: pakai URL bawaan di bawah ini.
+  API_URL: (window.AndroidItemize ? (window.AndroidItemize.getApiUrl() || '') : 'https://script.google.com/macros/s/AKfycbzWg2OT0Di4t9MslzX4grJorFyAz-BDwcUxetq9M_OXkQyoZhvESD_tgvbmojbTzw/exec'),
   SAME_CODE_COOLDOWN_MS: 1500                 // abaikan kode yang sama dalam jeda ini (mencegah double-scan kamera)
 };
 
@@ -418,9 +421,9 @@ function beep(kind){
 /* ============ API ============ */
 class NetError extends Error {}
 async function api(action, data = {}){
-  if (!CONFIG.API_URL || CONFIG.API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi di index.html');
+  if (!CONFIG.API_URL || CONFIG.API_URL.startsWith('GANTI')) throw new Error(window.AndroidItemize ? 'URL Google Sheet belum diisi. Buka menu Itemize > Setting Google Sheet' : 'API_URL belum diisi di index.html');
   let res, j;
-  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), action === 'scan' ? 20000 : 120000);   // sinyal lemah: jangan menggantung selamanya
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), (action === 'scan' || action === 'scanBatch') ? 45000 : 120000);   // sinyal lemah: jangan menggantung selamanya
   try{
     try{
       res = await fetch(CONFIG.API_URL, {
@@ -710,25 +713,44 @@ function renderResult(r, note, undone){
   $('#btnTagEdit').onclick = () => openQty(r);
 }
 
-const PAR = 3;                                   // kirim sampai 3 scan sekaligus
+const BATCH = 25;                                // scan yang dikirim sekaligus dalam satu permintaan
 let progTimer = null;
 function refreshProgress(delay){
   clearTimeout(progTimer);
   progTimer = setTimeout(loadProgress, delay == null ? 700 : delay);
+}
+function paintProgress(r){
+  $('#progBox').hidden = false;
+  $('#progPct').textContent = r.persen + '%';
+  $('#progTxt').textContent = `${r.sudah} dari ${r.total} SKU`;
+  $('#progBar').style.width = Math.min(100, r.persen) + '%';
+  $('#pgSudah').textContent = r.sudah; $('#pgBelum').textContent = r.belum; $('#pgLuar').textContent = r.luar;
+}
+// Samakan tanda "sudah discan" di perangkat ini dengan data server (termasuk scan petugas lain & pembatalan)
+function mergeScanned(id, list){
+  if (CACHE.sesi !== id) return;
+  const set = new Set(list), pend = new Set(S.queue.filter(q => q.sesi_id === id).map(q => q.sku));
+  let lost = false;
+  Object.keys(CACHE.map).forEach(k => {
+    const c = CACHE.map[k], now = set.has(k) || pend.has(k);
+    if (c.scanned && !now) lost = true;
+    c.scanned = now;
+  });
+  list.forEach(k => { if (!CACHE.map[k]) CACHE.map[k] = {nama: '(Tidak ada di system)', qty_system: 0, ada: false, scanned: true}; });
+  if (lost) loadNS(true); else renderNS();
 }
 async function loadProgress(){
   const id = S.sesiId;
   if (!id){ $('#progBox').hidden = true; return; }
   if (S.flushing || S.queue.length) return refreshProgress(1500);   // tunggu scan terkirim dulu
   try{
-    const r = await api('progress', {sesi_id: id});
+    if (S.noSync){ const r = await api('progress', {sesi_id: id}); if (id === S.sesiId) paintProgress(r); return; }
+    const r = await api('sync', {sesi_id: id, sig: S.syncSig && S.syncSig.id === id ? S.syncSig.v : ''});
     if (id !== S.sesiId) return;
-    $('#progBox').hidden = false;
-    $('#progPct').textContent = r.persen + '%';
-    $('#progTxt').textContent = `${r.sudah} dari ${r.total} SKU`;
-    $('#progBar').style.width = Math.min(100, r.persen) + '%';
-    $('#pgSudah').textContent = r.sudah; $('#pgBelum').textContent = r.belum; $('#pgLuar').textContent = r.luar;
-  }catch(e){}
+    S.syncSig = {id, v: r.sig};
+    paintProgress(r.progress);
+    if (!r.same) mergeScanned(id, r.scanned || []);
+  }catch(e){ if (/Aksi tidak dikenal/i.test(e.message)) S.noSync = true; }
 }
 let syncTimer = null;
 function scheduleSync(sesiId){                   // perbarui sheet hasil setelah berhenti scan
@@ -782,28 +804,41 @@ function srvWarn(msg){                                          // error sementa
   if (Date.now() - srvWarnAt < 60000) return;
   srvWarnAt = Date.now(); toast('Server: ' + msg + '. Scan tetap tersimpan dan dicoba lagi otomatis.', true);
 }
+/* Scan beruntun: semua scan yang menunggu dikirim sekaligus (maks. BATCH per permintaan) dan layar sudah
+   menampilkan hasilnya lebih dulu (lihat predict). Selama satu permintaan berjalan, scan berikutnya menumpuk
+   di antrean lalu dikirim bersama di putaran berikutnya, jadi tidak ada penundaan per scan. */
 async function flush(){
-  if (S.flushing){ if (S.pump) S.pump(); return; }
+  if (S.flushing) return;
   S.flushing = true;
   let net = false;
-  const inflight = new Set();
   try{
-    await new Promise(resolve => {
-      const pump = () => {
-        while (!net && inflight.size < PAR){
-          const it = S.queue.find(q => !inflight.has(q.scan_id));
-          if (!it) break;
-          inflight.add(it.scan_id);
-          api('scan', it)
-            .then(v => onScanOk(it, v), er => { if (er instanceof NetError) net = true; else if (er.retry){ net = true; srvWarn(er.message); } else onScanErr(it, er); })
-            .catch(() => {})
-            .finally(() => { inflight.delete(it.scan_id); pump(); });
-        }
-        if (!inflight.size) resolve();
-      };
-      S.pump = pump; pump();
-    });
-  } finally { S.flushing = false; S.pump = null; updateQueueBanner(); }
+    while (!net && S.queue.length){
+      const sid = S.queue[0].sesi_id;
+      const batch = S.queue.filter(q => q.sesi_id === sid).slice(0, BATCH);
+      if (S.noBatch){                                      // Code.gs lama belum punya scanBatch: kirim satu per satu (3 paralel)
+        await Promise.all(batch.slice(0, 3).map(it => api('scan', it)
+          .then(v => onScanOk(it, v), er => { if (er instanceof NetError) net = true; else if (er.retry){ net = true; srvWarn(er.message); } else onScanErr(it, er); })
+          .catch(() => {})));
+        continue;
+      }
+      let res;
+      try{ res = await api('scanBatch', {sesi_id: sid, items: batch.map(q => ({scan_id: q.scan_id, sku: q.sku, lokasi: q.lokasi}))}); }
+      catch(er){
+        if (er instanceof NetError){ net = true; break; }
+        if (/Aksi tidak dikenal/i.test(er.message)){ S.noBatch = true; continue; }
+        if (er.retry){ net = true; srvWarn(er.message); break; }
+        batch.forEach(it => onScanErr(it, er)); continue;  // penolakan pasti (sesi tutup / tidak ada)
+      }
+      const by = {}; (res.results || []).forEach(r => by[r.scan_id] = r);
+      batch.forEach(it => {
+        const r = by[it.scan_id];
+        if (!r){ net = true; return; }                      // tidak dijawab: tetap di antrean, dicoba lagi
+        if (r.error){
+          if (/SKU kosong/i.test(r.error)) onScanErr(it, new Error(r.error)); else { net = true; srvWarn(r.error); }
+        }else onScanOk(it, r.data);
+      });
+    }
+  } finally { S.flushing = false; updateQueueBanner(); }
   if (!net && S.queue.length) flush();
 }
 function updateQueueBanner(){
@@ -815,6 +850,9 @@ function updateQueueBanner(){
 window.addEventListener('online', () => { updateQueueBanner(); flush(); });
 window.addEventListener('offline', updateQueueBanner);
 setInterval(() => { if (S.queue.length) flush(); }, 15000);
+// Segarkan progres & tanda "sudah discan" dari petugas lain secara berkala (hanya saat layar Scan terbuka dan antrean kosong)
+setInterval(() => { if (!document.hidden && !$('#app').hidden && scanOn() && navigator.onLine && !S.flushing && !S.queue.length && S.sesiId) refreshProgress(0); }, 10000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden && S.sesiId) refreshProgress(300); });
 
 $('#btnUndo').onclick = () => undoScan((S.hist[S.sesiId] || []).find(x => x.baru !== false && !x.pend));   // scan terbaru yang benar-benar tercatat (bukan duplikat)
 async function undoScan(top){
@@ -963,12 +1001,22 @@ $('#btnXlsx').onclick = () => {
     ws['!cols'] = d.wch.map(w => ({wch: w}));
     XLSX.utils.book_append_sheet(wb, ws, name);
   });
+  if (window.AndroidItemize){
+    window.AndroidItemize.saveFile(`${S.sesiId}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', XLSX.write(wb, {bookType: 'xlsx', type: 'base64'}));
+    return;
+  }
   XLSX.writeFile(wb, `${S.sesiId}.xlsx`);
 };
 $('#btnCsv').onclick = () => {
   if (!S.rekap.length) return toast('Belum ada data rekap', true);
   const d = exportDef(), q = v => '"' + String(v).replace(/"/g, '""') + '"';
   const lines = [d.head.map(q).join(',')].concat(S.rekap.map(r => d.line(r).map(q).join(',')));
+  if (window.AndroidItemize){
+    const u8 = new TextEncoder().encode('\uFEFF' + lines.join('\r\n'));
+    let bin = ''; for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    window.AndroidItemize.saveFile(`${S.sesiId}.csv`, 'text/csv', btoa(bin));
+    return;
+  }
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${S.sesiId}.csv`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);

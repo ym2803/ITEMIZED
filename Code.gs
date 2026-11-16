@@ -121,6 +121,27 @@ function findMaster_(sku) {
   return { sku: sku, nama: nama, qty_system: qty, lokasi: lok.join(', ') };
 }
 
+/* ---------- Cache master per SKU (mempercepat scan beruntun) ----------
+   Hasil pencarian SKU di sheet master disimpan di cache 6 jam. Versi master (MVER) dinaikkan
+   setiap upload data system, sehingga cache lama otomatis tidak terpakai. */
+function masterVer_() { return PropertiesService.getScriptProperties().getProperty('MVER') || '0'; }
+function bumpMasterVer_() { PropertiesService.getScriptProperties().setProperty('MVER', String(Date.now())); }
+function findMasterMany_(skus) {
+  const c = CacheService.getScriptCache(), ver = masterVer_(), out = {}, put = {};
+  const keyOf = function (s) { return ('mk' + ver + '_' + s).slice(0, 240); };
+  const set = {}; skus.forEach(function (s) { set[s] = 1; });
+  const uniq = Object.keys(set);
+  const got = uniq.length ? c.getAll(uniq.map(keyOf)) : {};
+  uniq.forEach(function (s) {
+    const hit = got[keyOf(s)];
+    if (hit != null) { out[s] = hit === '-' ? null : JSON.parse(hit); return; }
+    const m = findMaster_(s);
+    out[s] = m; put[keyOf(s)] = m ? JSON.stringify(m) : '-';
+  });
+  try { if (Object.keys(put).length) c.putAll(put, 21600); } catch (e) {}
+  return out;
+}
+
 // Info sesi dari cache (5 menit); dihapus saat sesi ditutup
 function getSesiFast_(id) {
   const c = CacheService.getScriptCache(), k = 'sesi_' + id, hit = c.get(k);
@@ -394,6 +415,7 @@ const ACTIONS = {
       }).filter(function (r) { return r[0]; });
       if (data.length) s.getRange(Math.max(s.getLastRow(), 1) + 1, 1, data.length, 4).setValues(data);
       CacheService.getScriptCache().remove('msk_n');
+      bumpMasterVer_();                              // cache master per SKU jadi kedaluwarsa
       return { masuk: data.length };
     } finally { lock.releaseLock(); }
   },
@@ -434,6 +456,73 @@ const ACTIONS = {
         mode: sesi.mode
       };
     } finally { lock.releaseLock(); }
+  },
+
+  // Kirim banyak scan sekaligus (scan beruntun): satu kunci, satu pembacaan scan_log, satu penulisan.
+  // Jawaban berisi satu hasil per scan, dengan bentuk sama seperti aksi "scan".
+  scanBatch: function (req, user) {
+    const items = (req.items || []).slice(0, 40), results = [];
+    if (!items.length) return { results: results };
+    const sesi = getSesiFast_(req.sesi_id);
+    if (!sesi) throw new Error('Sesi tidak ditemukan');
+    if (sesi.status !== 'aktif') throw new Error('Sesi sudah selesai, scan tidak bisa ditambah');
+    const item = sesi.mode === 'itemize';
+    const skus = items.map(function (it) { return String(it.sku || '').trim(); }).filter(function (s) { return s; });
+    const mm = findMasterMany_(skus);                // dari cache; di luar kunci
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const log = sh_('scan_log'), n = log.getLastRow() - 1, ids = {}, tot = {}, have = {};
+      if (n > 0) log.getRange(2, 1, n, 8).getValues().forEach(function (r) {
+        if (String(r[1]) !== sesi.id) return;
+        ids[String(r[0])] = 1;
+        if (r[7] === 'valid') { const k = String(r[2]); have[k] = 1; tot[k] = (tot[k] || 0) + (Number(r[3]) || 0); }
+      });
+      const fresh = [], w = now_();
+      let dirty = false;
+      items.forEach(function (it) {
+        const sku = String(it.sku || '').trim(), sid = String(it.scan_id || '');
+        if (!sku) { results.push({ scan_id: sid, error: 'SKU kosong' }); return; }
+        const m = mm[sku], id = sid || Utilities.getUuid();
+        let baru, total;
+        if (ids[id]) { baru = true; total = tot[sku] || 0; }             // kiriman ulang dari antrean offline
+        else if (have[sku]) { baru = false; total = tot[sku] || 0; }      // sudah pernah discan di sesi ini
+        else {
+          const qty = item ? 1 : (m ? m.qty_system : 1);
+          fresh.push([id, sesi.id, sku, qty, item ? '-' : String(it.lokasi || '-'), user.nama, w, 'valid', 'scan']);
+          ids[id] = 1; have[sku] = 1; tot[sku] = qty; baru = true; total = qty;
+        }
+        if (baru) dirty = true;
+        results.push({ scan_id: sid, data: {
+          sku: sku, nama: m ? m.nama : '(Tidak ada di system)', ada_di_master: !!m,
+          qty_system: m ? m.qty_system : 0, total_fisik: total, baru: baru, mode: sesi.mode
+        } });
+      });
+      appendRows_(log, 9, fresh, TEXT_COLS.scan_log);
+      if (dirty) markDirty_(sesi.id);
+      return { results: results };
+    } finally { lock.releaseLock(); }
+  },
+
+  // Progres + daftar SKU yang sudah discan (semua petugas). Dipakai untuk menyegarkan layar otomatis
+  // supaya scan petugas lain langsung terlihat. Jika "sig" sama dengan keadaan terakhir, daftar tidak dikirim ulang.
+  sync: function (req) {
+    const sesi = getSesiFast_(req.sesi_id);
+    if (!sesi) throw new Error('Sesi tidak ditemukan');
+    const master = masterSkus_(), total = Object.keys(master).length;
+    const log = sh_('scan_log'), n = log.getLastRow() - 1, seen = {};
+    if (n > 0) log.getRange(2, 2, n, 7).getValues().forEach(function (r) {
+      if (String(r[0]) === sesi.id && r[6] === 'valid') seen[String(r[1])] = 1;
+    });
+    const list = Object.keys(seen);
+    let sudah = 0, luar = 0;
+    list.forEach(function (k) { if (master[k]) sudah++; else luar++; });
+    const progress = { mode: sesi.mode, total: total, sudah: sudah, belum: Math.max(total - sudah, 0), luar: luar,
+                       persen: total ? Math.round(sudah / total * 1000) / 10 : 0 };
+    const sig = log.getLastRow() + ':' + list.length + ':' + sudah;
+    if (req.sig && String(req.sig) === sig) return { same: true, sig: sig, progress: progress };
+    return { same: false, sig: sig, progress: progress, scanned: list };
   },
 
   undo: function (req, user) {
