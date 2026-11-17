@@ -25,7 +25,12 @@
   button,input,select{font:inherit;color:inherit}
   :focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 
-  .wrap{max-width:720px;margin:0 auto;padding:16px}
+  .wrap{max-width:720px;margin:0 auto;padding:16px;zoom:var(--z,1)}
+  .wrap.full{max-width:none}
+  .viewctl{display:flex;align-items:center;gap:8px;margin:6px 0 10px}
+  .viewctl .btn{min-height:44px;min-width:48px;padding:6px 12px;font-size:20px}
+  .viewctl input[type=range]{flex:1;min-height:44px;accent-color:var(--pri)}
+  .viewctl b{min-width:52px;text-align:center}
   .card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:16px;margin-bottom:12px}
   .card h2{font-size:18px;font-weight:700;margin-bottom:10px}
   label{display:block;font-weight:600;font-size:13px;color:var(--sub);margin-bottom:4px}
@@ -159,11 +164,25 @@
 <div id="app" hidden>
   <header class="top"><div class="in">
     <h1>ITEMIZED</h1>
-    <div class="who"><span id="whoName"></span><br><button id="btnLogout">Keluar</button></div>
+    <div class="who"><span id="whoName"></span><br><button id="btnView" aria-expanded="false">Tampilan</button> <button id="btnLogout">Keluar</button></div>
   </div></header>
   <div id="queueBanner" class="banner" hidden></div>
 
   <main class="wrap">
+    <!-- Pengaturan tampilan / zoom -->
+    <div class="card" id="viewPanel" hidden>
+      <h2>Tampilan</h2>
+      <p class="muted" style="margin:0">Perbesar atau perkecil isi layar agar nyaman dibaca. Tersimpan di perangkat ini.</p>
+      <div class="viewctl">
+        <button id="zMinus" class="btn" aria-label="Perkecil">−</button>
+        <input id="zRange" type="range" min="70" max="200" step="5" value="100" aria-label="Ukuran tampilan">
+        <button id="zPlus" class="btn" aria-label="Perbesar">+</button>
+        <b id="zVal">100%</b>
+      </div>
+      <label class="chk" style="margin:0 0 10px"><input id="zFull" type="checkbox"> Lebar penuh (untuk tablet / layar lebar)</label>
+      <div class="row"><button id="zReset" class="btn">Reset 100%</button><button id="zClose" class="btn primary">Selesai</button></div>
+    </div>
+
     <!-- Pilih sesi & lokasi (dipakai semua tab) -->
     <div class="card">
       <div class="row" style="flex-wrap:wrap">
@@ -253,6 +272,11 @@
 
     <!-- ADMIN -->
     <section id="tab-admin" role="tabpanel" hidden>
+      <div class="card" id="cardScanBc" hidden>
+        <h2>Scanner broadcast</h2>
+        <p class="muted">Pakai mode Broadcast scanner bawaan device (tidak perlu mode fokus). Atur action bila merek scanner tidak dikenali otomatis.</p>
+        <button id="btnScanBc" class="btn block">Atur scanner broadcast</button>
+      </div>
       <div class="card">
         <h2>Google Sheet</h2>
         <p class="muted">Buka file Google Sheet tempat semua data dan hasil scan tersimpan.</p>
@@ -284,6 +308,14 @@
         <div style="height:12px"></div>
         <button id="btnSesiBuat" class="btn primary block">Buat sesi</button>
       </div>
+      <div class="card" id="card02" hidden>
+        <h2>Data system dari Data 02</h2>
+        <p class="muted" id="info02">Memuat info Data 02…</p>
+        <label class="chk" style="margin:0 0 10px"><input id="chk02Keep" type="checkbox"> Kurangi Keep Stock dari qty system</label>
+        <button id="btn02" class="btn primary block">Pakai Data 02 sebagai data system</button>
+        <div class="progress" id="bar02" hidden><i></i></div>
+        <p id="msg02" class="muted"></p>
+      </div>
       <div class="card">
         <h2>Upload data system</h2>
         <p class="muted">Format: Excel (.xlsx, .xls), CSV, atau teks (.txt). Pilih file, lalu atur kolom mana yang berisi SKU, nama, lokasi, dan qty. Data lama diganti seluruhnya.</p>
@@ -309,6 +341,30 @@
         <button id="btnUpload" class="btn primary block" disabled>Upload data system</button>
         <div class="progress" id="upBar" hidden><i></i></div>
         <p id="upMsg" class="muted"></p>
+      </div>
+      <div class="card" id="cardQty">
+        <h2>Reset &amp; Import Qty System</h2>
+        <div style="background:#FDECEA;border:1px solid #F3B8B2;color:var(--short);border-radius:12px;padding:10px 12px;margin:0 0 12px">
+          <b>Peringatan:</b> proses ini me-nol-kan <b>seluruh qty system lama</b> di sheet master, lalu mengisi ulang qty hanya untuk SKU yang ada di file. SKU yang tidak ada di file menjadi qty 0. Bila proses gagal, qty lama dikembalikan otomatis (rollback).
+        </div>
+        <p class="muted">File Excel (.xlsx, .xls) atau CSV/teks dengan kolom <code>sku</code> dan <code>qty system</code>. Nama, SKU, dan lokasi di master tidak diubah. SKU yang belum ada di master dilewati (upload data system dulu).</p>
+        <input id="fileQty" type="file" accept=".xlsx,.xls,.csv,.txt,.tsv,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <div id="qtyBox" hidden>
+          <div class="mapgrid">
+            <div id="qtySheetWrap" hidden><label for="qtySheet">Sheet</label><select id="qtySheet"></select></div>
+            <div><label for="qtyColSku">Kolom SKU</label><select id="qtyColSku"></select></div>
+            <div><label for="qtyColQty">Kolom qty system</label><select id="qtyColQty"></select></div>
+          </div>
+          <label class="chk"><input type="checkbox" id="qtyHead" checked> Baris pertama adalah judul kolom</label>
+          <label>Pratinjau (5 baris pertama)</label>
+          <div class="pvwrap"><table class="pv" id="qtyPv"></table></div>
+          <p class="muted" id="qtyInfo"></p>
+          <label for="qtyConfirm">Ketik <b>RESET</b> untuk melanjutkan</label>
+          <input id="qtyConfirm" type="text" autocomplete="off" autocapitalize="characters" placeholder="RESET">
+        </div>
+        <div style="height:12px"></div>
+        <button id="btnQty" class="btn danger block" disabled>Reset &amp; Import Qty System</button>
+        <p id="qtyMsg" class="muted"></p>
       </div>
       <div class="card">
         <h2>Import hasil scan (TXT)</h2>
@@ -605,6 +661,28 @@ document.addEventListener('click', e => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && scanOn()) $('#inSku').focus({preventScroll: true}); });
 window.addEventListener('focus', () => { if (scanOn()) $('#inSku').focus({preventScroll: true}); });
 
+/* ---- Pengaturan tampilan: zoom isi layar 70%-200% + lebar penuh ---- */
+const VIEW = Object.assign({z: 100, full: false}, store.get('view', {}));
+function applyView(save){
+  VIEW.z = Math.min(200, Math.max(70, Math.round(Number(VIEW.z) / 5) * 5 || 100));
+  document.documentElement.style.setProperty('--z', VIEW.z / 100);
+  const w = document.querySelector('main.wrap'); if (w) w.classList.toggle('full', !!VIEW.full);
+  $('#zVal').textContent = VIEW.z + '%'; $('#zRange').value = VIEW.z; $('#zFull').checked = !!VIEW.full;
+  if (save) store.set('view', VIEW);
+}
+$('#btnView').onclick = () => { const p = $('#viewPanel'); p.hidden = !p.hidden; $('#btnView').setAttribute('aria-expanded', String(!p.hidden)); };
+$('#zClose').onclick = () => { $('#viewPanel').hidden = true; $('#btnView').setAttribute('aria-expanded', 'false'); };
+$('#zMinus').onclick = () => { VIEW.z -= 10; applyView(true); };
+$('#zPlus').onclick = () => { VIEW.z += 10; applyView(true); };
+$('#zRange').oninput = e => { VIEW.z = +e.target.value; applyView(true); };
+$('#zFull').onchange = e => { VIEW.full = e.target.checked; applyView(true); };
+$('#zReset').onclick = () => { VIEW.z = 100; VIEW.full = false; applyView(true); };
+applyView(false);
+
+if (window.AndroidItemize && window.AndroidItemize.openScanSettings){ $('#cardScanBc').hidden = false; $('#btnScanBc').onclick = () => window.AndroidItemize.openScanSettings(); }
+// Scan lewat broadcast (dari aplikasi Android): tidak butuh kolom terfokus
+window.onNativeScan = v => { if (scanOn()) sendSku(v); };
+
 function renderPending(sku){
   const b = $('#tagBox'); b.className = 'tag item pending';
   b.innerHTML = `<div><div class="sk">${esc(sku)}</div><div class="nm">${navigator.onLine ? 'Mengirim…' : 'Tersimpan di perangkat, dikirim saat ada sinyal'}</div></div>`;
@@ -630,6 +708,17 @@ function histDrop(sesiId, scanId){
   if (i >= 0) a.splice(i, 1); histSave(sesiId);
 }
 var NS = {rows: [], sesi: ''}, CACHE = {sesi: '', map: {}};
+const STATUS_LIST = ['Sesuai', 'Kurang', 'Lebih', 'Belum di-scan', 'Sudah di-scan', 'Tidak ada di system', 'Diluar system', 'SKU tidak ada di system'];   // urutan sama dengan Code.gs
+function decodeRekap(r){                       // server baru mengirim array ringkas (fmt n/a); server lama mengirim objek
+  const rows = decodeRekapRaw(r);
+  // Itemize: "belum discan" hanya untuk SKU qty system > 0 (server baru sudah menyaring; ini pengaman untuk server lama)
+  return r.mode === 'itemize' ? rows.filter(x => !(x.status === 'Belum di-scan' && !(x.qty_system > 0))) : rows;
+}
+function decodeRekapRaw(r){
+  if (!r.fmt) return r.rows;
+  if (r.fmt === 'n') return r.rows.map(a => ({sku: a[0], nama: a[1], lokasi: '', qty_system: a[2], qty_fisik: 0, selisih: 0, status: STATUS_LIST[a[3]] || 'Belum di-scan', petugas: '', waktu: ''}));
+  return r.rows.map(a => ({sku: a[0], nama: a[1], lokasi: a[2], qty_system: a[3], qty_fisik: a[4], selisih: a[5], status: STATUS_LIST[a[6]] || 'Belum di-scan', petugas: a[7], waktu: a[8]}));
+}
 function restoreCache(){                       // pakai salinan terakhir di perangkat sampai data segar dari server tiba
   const id = S.sesiId; if (!id) return;
   try{
@@ -643,10 +732,11 @@ async function loadNS(quiet){
   if (!S.sesiId){ NS.rows = []; return renderNS(); }
   const id = S.sesiId; if (!quiet) $('#nsNote').textContent = 'Memuat…';
   try{
-    const r = await api('rekap', {sesi_id: id});
+    const r = await api('rekap', {sesi_id: id, fmt: 'n'});
     if (id !== S.sesiId) return;
+    r.rows = decodeRekap(r);
     const map = {};
-    r.rows.forEach(x => { map[x.sku] = {nama: x.nama, qty_system: x.qty_system, ada: x.status !== 'Tidak ada di system', scanned: x.status !== 'Belum di-scan'}; });
+    r.rows.forEach(x => { map[x.sku] = {nama: x.nama, qty_system: x.qty_system, ada: x.status !== 'Tidak ada di system' && x.status !== 'SKU tidak ada di system', scanned: x.status !== 'Belum di-scan'}; });
     CACHE = {sesi: id, map};
     try{ const arr = Object.keys(map).map(k => [k, map[k].nama, map[k].qty_system, map[k].ada ? 1 : 0, map[k].scanned ? 1 : 0]), js = JSON.stringify(arr); if (js.length < 2500000) localStorage.setItem('cache_' + id, js); }catch(e){}
     NS.rows = r.rows.filter(x => x.status === 'Belum di-scan'); NS.sesi = id; renderNS();
@@ -664,7 +754,7 @@ function renderNS(){
 }
 $('#nsBox').addEventListener('toggle', () => { if ($('#nsBox').open && NS.sesi !== S.sesiId) loadNS(); });
 $('#nsReload').onclick = () => loadNS();
-$('#nsFind').oninput = renderNS;
+let nsT = null; $('#nsFind').oninput = () => { clearTimeout(nsT); nsT = setTimeout(renderNS, 150); };   // master besar: jangan saring tiap ketukan
 $('#nsList').onclick = e => {
   const b = e.target.closest('.hx'); if (!b) return;
   const sku = b.dataset.sku;
@@ -696,7 +786,8 @@ function statusChip(total, sys, ada){
 function renderItem(r, note, undone){
   const b = $('#tagBox'); b.className = 'tag item';
   const chip = undone ? '<span class="chip none">○ Dibatalkan, belum discan</span>'
-    : r.ada_di_master === false ? '<span class="chip unk">? Tidak ada di system</span>'
+    : r.ada_di_master === false ? '<span class="chip unk">? SKU tidak ada di system</span>'
+    : !(r.qty_system > 0) ? '<span class="chip over">? Diluar system</span>'
     : r.baru ? '<span class="chip ok">✓ Sudah discan</span>' : '<span class="chip over">⚠ Sudah pernah discan</span>';
   b.innerHTML = `<div class="sk">${esc(r.sku)}</div><div class="nm">${esc(r.nama)}</div>
     <div class="meta">${chip}${note ? `<span>${esc(note)}</span>` : ''}</div>`;
@@ -758,11 +849,13 @@ function scheduleSync(sesiId){                   // perbarui sheet hasil setelah
   clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
     if (S.queue.length || S.flushing) return scheduleSync(sesiId);
-    try{ await api('syncHasil', {sesi_id: sesiId}); }catch(e){}
+    try{ const r = await api('syncHasil', {sesi_id: sesiId}); if (r && r.tertunda) syncTimer = setTimeout(() => scheduleSync(sesiId), Math.max(10, r.tunggu || 90) * 1000); }catch(e){}
   }, 6000);
 }
-const kindOf = v => v.baru === false ? 'dup' : (v.mode === 'itemize' ? !!(v.ada_di_master && v.baru) : !!v.ada_di_master);
-const stText = r => r.ada_di_master === false ? '? Di luar system' : r.baru === false ? '⚠ Sudah pernah' : '✓ Tercatat';
+const kindOf = v => v.baru === false ? 'dup' : (v.mode === 'itemize' ? !!(v.ada_di_master && v.baru && v.qty_system > 0) : !!v.ada_di_master);
+const stText = r => r.ada_di_master === false ? (r.mode === 'itemize' ? '? SKU tidak ada di system' : '? Di luar system')
+  : r.baru === false ? '⚠ Sudah pernah'
+  : (r.mode === 'itemize' && !(r.qty_system > 0)) ? '? Diluar system' : '✓ Tercatat';
 // Tebakan hasil dari data rekap yang sudah dimuat. Server tetap menjadi penentu dan mengoreksi bila beda.
 function predict(sku, item){
   if (CACHE.sesi !== S.sesiId) return null;
@@ -934,14 +1027,16 @@ const ST_ITM = {
   all:   {label: 'Semua'},
   'Belum di-scan': {label: 'Belum discan', cls: 'short', icon: '○'},
   'Sudah di-scan': {label: 'Sudah discan', cls: 'ok', icon: '✓'},
-  'Tidak ada di system': {label: 'Di luar system', cls: 'unk', icon: '?'}
+  'Diluar system': {label: 'Diluar system', cls: 'over', icon: '?'},
+  'SKU tidak ada di system': {label: 'SKU tidak ada di system', cls: 'unk', icon: '?'},
+  'Tidak ada di system': {label: 'SKU tidak ada di system', cls: 'unk', icon: '?'}   // server lama
 };
 async function loadRekap(){
   if (!S.sesiId){ S.rekap = []; renderRekap(); return; }
   $('#rekapNote').textContent = 'Memuat…';
   try{
-    const r = await api('rekap', {sesi_id: S.sesiId});
-    S.rekap = r.rows; S.rekapSheet = r.sheet; S.rekapMode = r.mode; renderRekap();
+    const r = await api('rekap', {sesi_id: S.sesiId, fmt: 'a'});
+    S.rekap = decodeRekap(r); S.rekapSheet = r.sheet; S.rekapMode = r.mode; renderRekap();
   }catch(e){ $('#rekapNote').textContent = ''; toast(e.message, true); }
 }
 function renderRekap(){
@@ -960,12 +1055,12 @@ function renderRekap(){
   const q = $('#inFind').value.trim().toLowerCase();
   let rows = S.rekap.filter(r => (S.filter === 'all' || r.status === S.filter) &&
     (!q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q)));
-  const rank = {'Belum di-scan': 0, 'Tidak ada di system': 1, 'Sudah di-scan': 2};
-  if (item) rows.sort((a, b) => rank[a.status] - rank[b.status]);
+  const rank = {'Belum di-scan': 0, 'SKU tidak ada di system': 1, 'Tidak ada di system': 1, 'Diluar system': 2, 'Sudah di-scan': 3};
+  if (item) rows.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
   else rows.sort((a, b) => Math.abs(b.selisih) - Math.abs(a.selisih));
   const MAX = 300, shown = rows.slice(0, MAX), cols = item ? 2 : 5;
   $('#rekapBody').innerHTML = shown.length ? shown.map(r => {
-    const st = ST[r.status], chip = `<span class="chip ${st.cls}">${st.icon} ${esc(st.label)}</span>`;
+    const st = ST[r.status] || {label: String(r.status || 'Tidak dikenal'), cls: 'unk', icon: '?'}, chip = `<span class="chip ${st.cls}">${st.icon} ${esc(st.label)}</span>`;
     const nm = `<td><span class="rsku">${esc(r.sku)}</span><small>${esc(r.nama)}${!item && r.lokasi ? ' · ' + esc(r.lokasi) : ''}</small></td>`;
     if (item) return `<tr>${nm}<td>${chip}${r.petugas ? `<small>${esc(r.petugas)} · ${esc(r.waktu)}</small>` : ''}</td></tr>`;
     return `<tr>${nm}<td class="n">${r.qty_system}</td><td class="n">${r.qty_fisik}</td>
@@ -982,7 +1077,8 @@ function exportDef(){
     line: r => [String(r.sku), r.nama, r.status, r.petugas || '', r.waktu || ''],
     wch: [18, 36, 20, 14, 19],
     sheets: [['Hasil Itemize', () => true], ['Belum Discan', r => r.status === 'Belum di-scan'],
-             ['Sudah Discan', r => r.status === 'Sudah di-scan'], ['Di Luar System', r => r.status === 'Tidak ada di system']]
+             ['Sudah Discan', r => r.status === 'Sudah di-scan'], ['Diluar System', r => r.status === 'Diluar system'],
+             ['SKU Tidak Ada di System', r => r.status === 'SKU tidak ada di system' || r.status === 'Tidak ada di system']]
   };
   return {
     head: ['SKU', 'Nama barang', 'Lokasi', 'Qty system', 'Qty fisik', 'Selisih', 'Status', 'Petugas', 'Waktu scan'],
@@ -1335,6 +1431,153 @@ $('#btnUpload').onclick = async () => {
     toast('Data system berhasil diupload'); loadNS(true);
   }catch(e){ toast(e.message, true); $('#upMsg').textContent = 'Upload terhenti: ' + e.message; }
   finally{ $('#btnUpload').disabled = false; }
+};
+
+/* ============ RESET & IMPORT QTY SYSTEM ============ */
+const QY = {fmt: [], raw: [], wb: null, kind: '', text: ''};
+const QSKU_SYN = FIELDS[0].syn, QQTY_SYN = ['qty system', 'qty_system', 'qty', 'stok', 'stock', 'jumlah', 'saldo', 'quantity', 'on hand'];
+function qtyData(){
+  const off = $('#qtyHead').checked ? 1 : 0, cs = Number($('#qtyColSku').value), cq = Number($('#qtyColQty').value);
+  const rows = []; let bad = 0, kosong = 0;
+  if (cs < 0 || cq < 0) return {rows, bad, kosong};
+  for (let i = off; i < QY.fmt.length; i++){
+    const sku = String((QY.fmt[i] || [])[cs] ?? '').trim();
+    if (!sku){ kosong++; continue; }
+    const q = parseQty((QY.raw[i] || QY.fmt[i])[cq]);
+    if (isNaN(q)){ bad++; continue; }
+    rows.push([sku, q]);
+  }
+  return {rows, bad, kosong};
+}
+function qtyUpdateBtn(){
+  const d = qtyData();
+  $('#btnQty').disabled = !d.rows.length || $('#qtyConfirm').value.trim().toUpperCase() !== 'RESET';
+}
+function qtyRender(){
+  const d = qtyData(), uniq = new Set(d.rows.map(r => r[0].toLowerCase())).size;
+  $('#qtyPv').innerHTML = '<tr><th>SKU</th><th>Qty system</th></tr>' + d.rows.slice(0, 5).map(r => `<tr><td>${esc(r[0])}</td><td>${esc(String(r[1]))}</td></tr>`).join('');
+  $('#qtyInfo').textContent = d.rows.length
+    ? `${d.rows.length} baris terbaca (${uniq} SKU unik).` + (d.bad ? ` ${d.bad} baris dilewati karena qty bukan angka.` : '') + ' SKU kembar dijumlahkan.'
+    : 'Tidak ada baris valid. Periksa pilihan kolom SKU, kolom qty, dan baris judul.';
+  qtyUpdateBtn();
+}
+function qtyFillCols(){
+  const n = QY.fmt.slice(0, 50).reduce((m, r) => Math.max(m, r.length), 0), head = $('#qtyHead').checked ? (QY.fmt[0] || []) : null;
+  let opts = '<option value="-1">— pilih kolom —</option>';
+  for (let i = 0; i < n; i++) opts += `<option value="${i}">${esc(head && String(head[i] ?? '').trim() ? colLetter(i) + ' · ' + String(head[i]).trim() : 'Kolom ' + colLetter(i))}</option>`;
+  $('#qtyColSku').innerHTML = opts; $('#qtyColQty').innerHTML = opts;
+  let ps = -1, pq = -1;
+  if (head){ const hn = head.map(normH); ps = hn.findIndex(h => QSKU_SYN.includes(h)); pq = hn.findIndex(h => QQTY_SYN.includes(h)); }
+  else { ps = n > 0 ? 0 : -1; pq = n > 1 ? 1 : -1; }
+  $('#qtyColSku').value = String(ps); $('#qtyColQty').value = String(pq);
+  qtyRender();
+}
+function qtyApplyText(){ QY.fmt = QY.raw = parseCSV(QY.text, 'auto'); qtyFillCols(); }
+function qtyApplySheet(){
+  const ws = QY.wb.Sheets[$('#qtySheet').value];
+  QY.fmt = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false, defval: ''});
+  QY.raw = XLSX.utils.sheet_to_json(ws, {header: 1, raw: true, defval: ''});
+  qtyFillCols();
+}
+$('#fileQty').onchange = async () => {
+  const f = $('#fileQty').files[0];
+  $('#qtyBox').hidden = true; $('#btnQty').disabled = true; $('#qtyMsg').textContent = ''; $('#qtyConfirm').value = '';
+  if (!f) return;
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  try{
+    if (ext === 'xlsx' || ext === 'xls'){
+      if (typeof XLSX === 'undefined') throw new Error('Pustaka Excel belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+      QY.wb = XLSX.read(await f.arrayBuffer(), {type: 'array'});
+      $('#qtySheet').innerHTML = QY.wb.SheetNames.map(n => `<option>${esc(n)}</option>`).join('');
+      $('#qtySheetWrap').hidden = QY.wb.SheetNames.length < 2;
+      $('#qtyBox').hidden = false; qtyApplySheet();
+    }else if (['csv', 'txt', 'tsv', ''].includes(ext) || f.type.startsWith('text/')){
+      QY.text = await f.text(); $('#qtySheetWrap').hidden = true;
+      $('#qtyBox').hidden = false; qtyApplyText();
+    }else throw new Error('Format file tidak didukung. Gunakan .xlsx, .xls, .csv, atau .txt');
+    if (!QY.fmt.length){ $('#qtyBox').hidden = true; toast('File kosong', true); }
+  }catch(e){ $('#qtyBox').hidden = true; toast(e.message, true); }
+};
+$('#qtySheet').onchange = qtyApplySheet;
+$('#qtyHead').onchange = qtyFillCols;
+$('#qtyColSku').onchange = qtyRender; $('#qtyColQty').onchange = qtyRender;
+$('#qtyConfirm').oninput = qtyUpdateBtn;
+$('#btnQty').onclick = async () => {
+  const d = qtyData();
+  if (!d.rows.length) return toast('Tidak ada baris data yang valid', true);
+  if ($('#qtyConfirm').value.trim().toUpperCase() !== 'RESET') return toast('Ketik RESET untuk melanjutkan', true);
+  if (!confirm(`SEMUA qty system lama akan di-nol-kan, lalu diisi dari ${d.rows.length} baris file ini.\n\nLanjutkan?`)) return;
+  const btn = $('#btnQty'); btn.disabled = true; $('#qtyMsg').textContent = 'Memproses… jangan tutup halaman ini.';
+  try{
+    const r = await api('resetImportQty', {rows: d.rows, confirm: 'RESET'});   // satu permintaan = satu transaksi di server
+    $('#qtyMsg').innerHTML = `Selesai. <b>${r.diperbarui}</b> SKU diperbarui (total qty ${r.total_qty}), ${r.dinolkan} baris stok lama menjadi 0.` +
+      (r.tidak_ada_di_master ? `<br>${r.tidak_ada_di_master} SKU di file tidak ada di master dan dilewati` + (r.contoh_tidak_ada.length ? ': ' + esc(r.contoh_tidak_ada.slice(0, 5).join(', ')) + (r.tidak_ada_di_master > 5 ? ', …' : '') : '') + '.' : '') +
+      (r.qty_tidak_valid ? `<br>${r.qty_tidak_valid} baris dilewati karena qty tidak valid.` : '');
+    toast('Qty system berhasil di-reset & diimport');
+    $('#qtyConfirm').value = '';
+    const cur = S.sesi.find(x => x.sesi_id === S.sesiId);
+    if (cur && cur.status === 'aktif'){ try{ await api('syncHasil', {sesi_id: S.sesiId, force: true}); }catch(e){} refreshProgress(0); }
+    loadNS(true);
+  }catch(e){ $('#qtyMsg').textContent = e.message; toast(e.message, true); }
+  finally{ qtyUpdateBtn(); }
+};
+
+/* ============ DATA SYSTEM DARI DATA 02 (hanya di aplikasi Android) ============
+   Data 02 dibaca dari database aplikasi lalu dikirim ke Google Sheet lewat perintah uploadMaster yang SAMA dengan
+   upload file, jadi semua petugas (aplikasi maupun web) tetap memakai data system yang sama di sheet. */
+const HAS02 = !!(window.AndroidItemize && window.AndroidItemize.catalogInfo && window.AndroidItemize.catalogChunk);
+function info02(){
+  if (!HAS02) return;
+  try{
+    const i = JSON.parse(window.AndroidItemize.catalogInfo());
+    $('#info02').textContent = i.count
+      ? `Data 02 di perangkat ini: ${i.count.toLocaleString('id-ID')} SKU` + (i.updated ? `, diperbarui ${new Date(i.updated).toLocaleString('id-ID')}` : '') + '. Data system lama di sesi/sheet akan diganti seluruhnya.'
+      : 'Data 02 belum ada. Download dulu data 02 di menu utama aplikasi.';
+    $('#btn02').disabled = !i.count;
+  }catch(e){ $('#info02').textContent = 'Data 02 tidak bisa dibaca.'; $('#btn02').disabled = true; }
+}
+if (HAS02){ $('#card02').hidden = false; info02(); $('#nav-admin').addEventListener('click', info02); }
+const tick = () => new Promise(r => setTimeout(r, 0));
+$('#btn02').onclick = async () => {
+  if (!HAS02) return;
+  const bar = $('#bar02'), msg = $('#msg02'), keepOn = $('#chk02Keep').checked;
+  $('#btn02').disabled = true; bar.hidden = false; bar.firstElementChild.style.width = '0%';
+  try{
+    const total = (JSON.parse(window.AndroidItemize.catalogInfo()).count) || 0;
+    const data = []; let last = '';
+    for (;;){                                                       // baca semua Data 02 dulu (belum mengubah apa pun di sheet)
+      const r = JSON.parse(window.AndroidItemize.catalogChunk(last, 2000));
+      if (r.error) throw new Error('Gagal membaca Data 02: ' + r.error);
+      if (!r.rows.length) break;
+      for (const x of r.rows){
+        const sku = String(x[0] || '').trim(); if (!sku) continue;
+        const clean = v => { v = String(v || '').trim(); return v === '-' ? '' : v; };
+        let qty = parseQty(clean(x[3])); if (isNaN(qty)) qty = 0;
+        if (keepOn){ const k = parseQty(clean(x[4])); if (!isNaN(k)) qty -= k; }
+        data.push([sku, clean(x[1]), clean(x[2]), qty]);
+      }
+      last = r.last; msg.textContent = `Membaca Data 02: ${data.length} dari ${total}`;
+      bar.firstElementChild.style.width = Math.min(30, Math.round(data.length / Math.max(total, 1) * 30)) + '%';
+      await tick();
+    }
+    if (!data.length) throw new Error('Data 02 kosong');
+    if (!confirm(`Ganti data system dengan ${data.length} SKU dari Data 02?`)){ msg.textContent = 'Dibatalkan.'; bar.hidden = true; return; }
+    const CHUNK = 1500;
+    for (let i = 0; i < data.length; i += CHUNK){
+      await api('uploadMaster', {rows: data.slice(i, i + CHUNK), append: i > 0});
+      bar.firstElementChild.style.width = (30 + Math.min(70, Math.round((i + CHUNK) / data.length * 70))) + '%';
+      msg.textContent = `Terkirim ${Math.min(i + CHUNK, data.length)} dari ${data.length} baris`;
+    }
+    const cur = S.sesi.find(x => x.sesi_id === S.sesiId);
+    if (cur && cur.status === 'aktif'){
+      msg.textContent = 'Memperbarui sheet hasil scan…';
+      try{ await api('syncHasil', {sesi_id: S.sesiId, force: true}); }catch(e){}
+      refreshProgress(0);
+    }
+    msg.textContent = `Selesai: ${data.length} SKU dari Data 02 diupload.`;
+    toast('Data system dari Data 02 berhasil diupload'); loadNS(true);
+  }catch(e){ toast(e.message, true); msg.textContent = 'Terhenti: ' + e.message; }
+  finally{ info02(); }
 };
 
 /* ============ IMPORT HASIL SCAN (TXT) ============ */
