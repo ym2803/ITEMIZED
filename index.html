@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4834D4">
+<title>ITEMIZED</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* Tema disamakan dengan aplikasi Android: ungu #4834D4, kartu lembut, sudut membulat, tombol pill */
+  :root{
+    --pri:#4834D4; --pri-dark:#2D1F7A; --soft:#F5F3FF; --stroke:#E4DEFA; --chip:#EDE9FE; --sub:#7A6FCB;
+    --ink:#1A1A2E; --ink-2:#5B5878; --paper:#FFFFFF; --card:#F5F3FF; --line:#E4DEFA;
+    --label:#EDE9FE; --ok:#1B7F52; --short:#B8322A; --over:#9A5B00; --unk:#5B3FA8;
+    --head:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:var(--body);color:var(--ink);background:var(--paper);font-size:16px;line-height:1.45;
+       padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  [hidden]{display:none !important}
+  h1,h2,h3{font-family:var(--head);margin:0;line-height:1.15}
+  button,input,select{font:inherit;color:inherit}
+  :focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+
+  .wrap{max-width:720px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:16px;margin-bottom:12px}
+  .card h2{font-size:18px;font-weight:700;margin-bottom:10px}
+  label{display:block;font-weight:600;font-size:13px;color:var(--sub);margin-bottom:4px}
+  input[type=text],input[type=password],input[type=number],input[type=search],select{
+    width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--stroke);border-radius:14px;background:#fff}
+  input:focus,select:focus{border-color:var(--pri);outline:none;box-shadow:0 0 0 3px rgba(72,52,212,.15)}
+  .row{display:flex;gap:8px;align-items:end}
+  .row>*{flex:1}
+  .grow{flex:1}
+  .btn{min-height:48px;padding:10px 16px;border-radius:18px;border:0;background:var(--chip);color:var(--pri);font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--pri);color:#fff}
+  .btn.danger{background:#FDECEA;color:var(--short)}
+  .btn.block{width:100%}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .muted{color:var(--ink-2);font-size:14px}
+
+  /* Login */
+  .login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:400px;margin:0 auto;padding:24px}
+  .login h1{font-size:40px;margin-bottom:6px;color:var(--pri);font-weight:800}
+  .login p{margin:0 0 20px;color:var(--ink-2)}
+
+  /* Header: ungu dengan lengkung bawah seperti header Android */
+  .top{background:var(--pri);color:#fff;padding:14px 16px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));
+       border-radius:0 0 28px 28px;box-shadow:0 4px 12px rgba(72,52,212,.25)}
+  .top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .top h1{font-size:22px;font-weight:800;letter-spacing:.02em}
+  .top .who{font-size:14px;opacity:.9;text-align:right}
+  .top button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:12px;cursor:pointer;padding:4px 12px;font-size:13px;margin-top:2px}
+  .banner{background:#FFF3C4;border-bottom:1px solid #E5C95A;padding:8px 16px;font-size:14px;text-align:center}
+
+  /* Tab bar */
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--stroke);display:flex;
+        padding-bottom:env(safe-area-inset-bottom,0px);z-index:5;box-shadow:0 -4px 12px rgba(72,52,212,.08)}
+  .tabs button{flex:1;min-height:56px;border:0;background:none;font-size:15px;font-weight:700;color:var(--sub);cursor:pointer}
+  .tabs button[aria-selected=true]{color:var(--pri);box-shadow:inset 0 3px 0 var(--pri);background:var(--soft)}
+
+  /* Scan */
+  .stick{position:sticky;top:0;z-index:4;background:var(--paper);padding:8px 0 10px;margin-top:-8px;box-shadow:0 6px 8px -6px rgba(72,52,212,.3)}
+  .stick .tag{margin-bottom:8px}
+  .stick .row{align-items:stretch}
+  #reader{width:100%;max-height:220px;border-radius:16px;overflow:hidden;background:#000;min-height:0;margin-bottom:10px}
+  #reader video{border-radius:16px}
+  .qtybox{display:flex;align-items:stretch;gap:0}
+  .qtybox button{width:52px;min-height:48px;border:1px solid var(--stroke);background:var(--chip);color:var(--pri);font-size:22px;font-weight:700;cursor:pointer}
+  .qtybox button:first-child{border-radius:14px 0 0 14px}
+  .qtybox button:last-child{border-radius:0 14px 14px 0}
+  .qtybox input{border-radius:0;text-align:center;border-left:0;border-right:0;min-width:0}
+
+  /* Kartu hasil scan */
+  .tag{background:var(--label);border:1px solid var(--stroke);border-radius:16px;padding:16px 18px;margin-bottom:12px;border-bottom:5px solid var(--pri);display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:end}
+  .tag .sk{grid-column:1;grid-row:1;min-width:0;font-family:var(--head);font-weight:800;font-size:24px;line-height:1.1;letter-spacing:.01em;overflow-wrap:anywhere;color:var(--pri-dark)}
+  .tag .nm{grid-column:1;grid-row:2;min-width:0;font-size:15px;font-weight:500;color:var(--ink-2);line-height:1.25}
+  .tag.item{display:block}
+  .tag.item .sk{margin-bottom:4px}
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--stroke)}
+  .hist li:last-child{border-bottom:0}
+  .hist .hs{font-family:var(--head);font-weight:700;font-size:19px;line-height:1.1;word-break:break-all}
+  .hist .hn{display:block;font-size:13px;color:var(--ink-2);font-weight:400;font-family:var(--body)}
+  .hist .hx{min-height:34px;padding:2px 12px;font-size:13px;margin-top:4px;border-radius:14px}
+  .hist .hr{text-align:right;flex:none;font-size:13px;color:var(--ink-2)}
+  .tag .cnt{grid-row:1/3;grid-column:2;text-align:right}
+  .tag .big{font-family:var(--head);font-weight:800;font-size:68px;line-height:.9;display:block;color:var(--pri)}
+  .tag .cap{font-size:13px;font-weight:600;color:var(--sub)}
+  .tag .meta{grid-column:1/3;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:15px}
+  .tag.empty{background:#fff;border:1.5px dashed var(--stroke);border-bottom:1.5px dashed var(--stroke);display:block;color:var(--ink-2)}
+  .tag.pending{opacity:.7}
+
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-weight:700;font-size:14px;background:#fff;border:1.5px solid currentColor}
+  .chip.none{color:var(--ink-2)} .chip.ok{color:var(--ok)} .chip.short{color:var(--short)} .chip.over{color:var(--over)} .chip.unk{color:var(--unk)}
+
+  /* Rekap */
+  .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px}
+  .sum button{text-align:left;background:#fff;border:1px solid var(--stroke);border-radius:16px;padding:10px 12px;cursor:pointer}
+  .sum button[aria-pressed=true]{border-color:var(--pri);background:var(--chip);box-shadow:inset 0 -4px 0 var(--pri)}
+  .sum b{font-family:var(--head);font-size:28px;display:block;line-height:1;color:var(--pri-dark)}
+  .sum span{font-size:13px;color:var(--sub)}
+  .tbl{overflow-x:auto;background:#fff;border:1px solid var(--stroke);border-radius:16px}
+  table{border-collapse:collapse;width:100%;font-size:15px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--stroke);vertical-align:top}
+  th{font-family:var(--head);font-size:14px;background:var(--chip);color:var(--pri-dark);position:sticky;top:0}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  td small{display:block;color:var(--ink-2)}
+  td .rsku{display:block;font-family:var(--head);font-weight:700;font-size:18px;line-height:1.15;overflow-wrap:anywhere}
+  td .rsku+small{font-size:13px;margin-top:2px}
+  tr:last-child td{border-bottom:0}
+
+  .toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+         background:var(--pri-dark);color:#fff;padding:10px 16px;border-radius:14px;max-width:90%;z-index:9;font-size:15px}
+  .toast.err{background:var(--short)}
+  dialog{border:1px solid var(--stroke);border-radius:20px;padding:18px;width:min(92vw,380px);background:#fff;color:var(--ink)}
+  dialog::backdrop{background:rgba(26,26,46,.55)}
+  .progress{height:8px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:8px}
+  .progress i{display:block;height:100%;background:var(--pri);width:0;transition:width .3s}
+  .prog .progtop{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .prog .progtop b{font-family:var(--head);font-size:32px;line-height:1;color:var(--pri)}
+  .prog .progress{height:12px;margin:8px 0 12px}
+  .progrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .progrow b{font-family:var(--head);font-size:24px;display:block;line-height:1}
+  .progrow span{font-size:13px;color:var(--ink-2)}
+  .progrow div:nth-child(1) b{color:var(--ok)} .progrow div:nth-child(2) b{color:var(--short)} .progrow div:nth-child(3) b{color:var(--unk)}
+
+  /* Pemetaan kolom upload */
+  .mapgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .mapgrid.one{grid-template-columns:1fr}
+  .mapgrid select{min-height:44px}
+  .chk{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink);margin:12px 0 0}
+  .chk input{width:22px;height:22px;flex:none;accent-color:var(--pri)}
+  .pvwrap{overflow-x:auto;border:1px solid var(--stroke);border-radius:14px;margin-top:8px}
+  .pv{border-collapse:collapse;width:100%;font-size:13px}
+  .pv th,.pv td{padding:6px 8px;border-bottom:1px solid var(--stroke);text-align:left;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+  .pv th{background:var(--chip);font-family:var(--head);font-weight:600}
+  details>summary{color:var(--pri-dark)}
+  @media(max-width:420px){.mapgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="login" hidden>
+  <h1>ITEMIZED</h1>
+  <p>Masukkan PIN dari admin untuk mulai menghitung stok atau hubungi WA <a href="https://wa.me/6282115303443" target="_blank" rel="noopener" style="color:inherit;font-weight:700;text-decoration:underline">+6282115303443</a></p>
+  <label for="pin">PIN</label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
+  <div style="height:12px"></div>
+  <button id="btnLogin" class="btn primary block">Masuk</button>
+  <p id="loginErr" class="muted" role="alert" style="color:var(--short);margin-top:12px"></p>
+</section>
+
+<!-- APP -->
+<div id="app" hidden>
+  <header class="top"><div class="in">
+    <h1>ITEMIZED</h1>
+    <div class="who"><span id="whoName"></span><br><button id="btnLogout">Keluar</button></div>
+  </div></header>
+  <div id="queueBanner" class="banner" hidden></div>
+
+  <main class="wrap">
+    <!-- Pilih sesi & lokasi (dipakai semua tab) -->
+    <div class="card">
+      <div class="row" style="flex-wrap:wrap">
+        <div style="flex:2 1 220px"><label for="selSesi">Sesi</label><select id="selSesi"></select></div>
+        <div id="wrapLokasi" style="flex:1 1 140px"><label for="inLokasi">Rak / lokasi</label><input id="inLokasi" type="text" placeholder="mis. RAK-A1" autocapitalize="characters"></div>
+      </div>
+    </div>
+
+    <!-- SCAN -->
+    <section id="tab-scan" role="tabpanel">
+      <div id="progBox" class="card prog" hidden>
+        <div class="progtop"><b id="progPct">0%</b><span id="progTxt" class="muted"></span></div>
+        <div class="progress"><i id="progBar"></i></div>
+        <div class="progrow">
+          <div><b id="pgSudah">0</b><span>Sudah discan</span></div>
+          <div><b id="pgBelum">0</b><span>Belum discan</span></div>
+          <div><b id="pgLuar">0</b><span>Di luar system</span></div>
+        </div>
+      </div>
+      <div class="stick">
+        <div id="tagBox" class="tag empty">Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.</div>
+
+        <div class="card" style="margin-bottom:0">
+          <div id="reader" hidden></div>
+          <button id="btnNext" class="btn primary block" style="margin-bottom:10px" hidden>Scan berikutnya</button>
+          <label for="inSku">Ketik SKU atau gunakan scanner (tekan Enter)</label>
+          <div class="row">
+            <input id="inSku" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+            <button id="btnCam" class="btn primary" style="flex:none">Buka kamera</button>
+          </div>
+          <div class="row" style="margin-top:8px;align-items:stretch;flex-wrap:wrap">
+            <button id="btnMode" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px"></button>
+            <button id="btnSound" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px"></button>
+            <button id="btnTorch" class="btn" style="min-height:40px;padding:6px 10px;font-size:14px" hidden>🔦 Senter: Mati</button>
+          </div>
+        </div>
+      </div>
+      <div style="height:12px"></div>
+      <button id="btnUndo" class="btn danger block">Batalkan scan terakhir saya</button>
+      <div class="card" style="margin-top:12px">
+        <h2>Riwayat scan</h2>
+        <ul id="histList" class="hist"></ul>
+        <p id="histEmpty" class="muted" style="margin:0">Belum ada scan di sesi ini.</p>
+      </div>
+      <details id="nsBox" class="card">
+        <summary style="font-family:var(--head);font-weight:700;font-size:18px;cursor:pointer">Cari barang belum discan</summary>
+        <div style="height:10px"></div>
+        <div class="row" style="align-items:stretch">
+          <input id="nsFind" type="search" placeholder="SKU atau nama barang">
+          <button id="nsReload" class="btn" style="flex:none">Muat ulang</button>
+        </div>
+        <ul id="nsList" class="hist"></ul>
+        <p id="nsNote" class="muted" style="margin:8px 0 0"></p>
+      </details>
+    </section>
+
+    <!-- REKAP -->
+    <section id="tab-rekap" role="tabpanel" hidden>
+      <div class="row" style="margin-bottom:12px">
+        <button id="btnReload" class="btn">Muat ulang</button>
+        <button id="btnXlsx" class="btn primary">Unduh Excel</button>
+        <button id="btnCsv" class="btn">Unduh CSV</button>
+      </div>
+      <p id="rekapSheet" class="muted" style="margin:-4px 0 12px"></p>
+      <div id="sum" class="sum"></div>
+      <label for="inFind">Cari SKU atau nama barang</label>
+      <input id="inFind" type="search" style="margin-bottom:12px">
+      <div class="tbl"><table>
+        <thead id="rekapHead"></thead>
+        <tbody id="rekapBody"></tbody>
+      </table></div>
+      <p id="rekapNote" class="muted"></p>
+    </section>
+
+    <!-- EDIT QTY -->
+    <section id="tab-edit" role="tabpanel" hidden>
+      <p class="muted">Daftar SKU yang sudah discan di sesi ini. Ubah qty jika jumlah fisik berbeda dari system.</p>
+      <div class="row" style="margin-bottom:12px"><button id="btnEditReload" class="btn">Muat ulang</button></div>
+      <label for="inEditFind">Cari SKU atau nama barang</label>
+      <input id="inEditFind" type="search" style="margin-bottom:12px">
+      <div class="tbl"><table>
+        <thead><tr><th>Barang</th><th class="n">System</th><th class="n">Fisik</th><th></th></tr></thead>
+        <tbody id="editBody"></tbody>
+      </table></div>
+      <p id="editNote" class="muted"></p>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="tab-admin" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Google Sheet</h2>
+        <p class="muted">Buka file Google Sheet tempat semua data dan hasil scan tersimpan.</p>
+        <a id="lnkSheet" class="btn primary block" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none" hidden>Buka Google Sheet</a>
+        <div style="height:8px"></div>
+        <a id="lnkHasil" class="btn block" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none" hidden>Buka sheet hasil sesi terpilih</a>
+        <p id="lnkMsg" class="muted" style="margin:8px 0 0"></p>
+      </div>
+      <div class="card">
+        <h2>Data toko</h2>
+        <p class="muted">Dipakai untuk nama output, misalnya STOCK TAKE_JW5006_CGAR_20261114_153045. Berlaku untuk sesi yang dibuat setelah ini.</p>
+        <div class="row" style="flex-wrap:wrap">
+          <div style="flex:1 1 140px"><label for="inTokoKode">Kode toko</label><input id="inTokoKode" type="text" placeholder="mis. JW5006" autocapitalize="characters"></div>
+          <div style="flex:1 1 140px"><label for="inTokoNama">Nama toko</label><input id="inTokoNama" type="text" placeholder="mis. CGAR"></div>
+        </div>
+        <div style="height:12px"></div>
+        <button id="btnTokoSimpan" class="btn primary block">Simpan data toko</button>
+      </div>
+      <div class="card">
+        <h2>Buat sesi baru</h2>
+        <label for="inSesiNama">Nama sesi</label>
+        <input id="inSesiNama" type="text" placeholder="mis. Opname Cabang 1 - November">
+        <div style="height:12px"></div>
+        <label for="selSesiMode">Mode scan</label>
+        <select id="selSesiMode">
+          <option value="opname">Opname: per rak, bandingkan qty dengan system</option>
+          <option value="itemize">Itemize: hanya cek SKU sudah / belum discan</option>
+        </select>
+        <div style="height:12px"></div>
+        <button id="btnSesiBuat" class="btn primary block">Buat sesi</button>
+      </div>
+      <div class="card">
+        <h2>Upload data system</h2>
+        <p class="muted">Format: Excel (.xlsx, .xls), CSV, atau teks (.txt). Pilih file, lalu atur kolom mana yang berisi SKU, nama, lokasi, dan qty. Data lama diganti seluruhnya.</p>
+        <input id="fileMaster" type="file" accept=".xlsx,.xls,.csv,.txt,.tsv,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <div id="mapBox" hidden>
+          <div class="mapgrid" id="mapOpts">
+            <div id="wrapSheet" hidden><label for="selSheet">Sheet</label><select id="selSheet"></select></div>
+            <div id="wrapDelim" hidden><label for="selDelim">Pemisah kolom</label>
+              <select id="selDelim"><option value="auto">Otomatis</option><option value="\t">Tab</option><option value=",">Koma ( , )</option><option value=";">Titik koma ( ; )</option><option value="|">Garis ( | )</option></select></div>
+          </div>
+          <label class="chk"><input type="checkbox" id="mapHead" checked> Baris pertama adalah judul kolom</label>
+          <div class="mapgrid">
+            <div><label for="mapSku">SKU / barcode (wajib)</label><select id="mapSku"></select></div>
+            <div><label for="mapNama">Nama barang</label><select id="mapNama"></select></div>
+            <div><label for="mapLokasi">Lokasi</label><select id="mapLokasi"></select></div>
+            <div><label for="mapQty">Qty system</label><select id="mapQty"></select></div>
+          </div>
+          <label>Pratinjau hasil (5 baris pertama)</label>
+          <div class="pvwrap"><table class="pv" id="pvTable"></table></div>
+          <p class="muted" id="pvInfo"></p>
+        </div>
+        <div style="height:12px"></div>
+        <button id="btnUpload" class="btn primary block" disabled>Upload data system</button>
+        <div class="progress" id="upBar" hidden><i></i></div>
+        <p id="upMsg" class="muted"></p>
+      </div>
+      <div class="card">
+        <h2>Import hasil scan (TXT)</h2>
+        <p class="muted">Data masuk ke sesi yang dipilih di atas, seperti hasil scan. SKU yang sudah ada di sesi dilewati.<br>
+          <b>Itemize:</b> satu kolom <code>SKU</code> atau dua kolom <code>rak,SKU</code> (yang dipakai hanya SKU), contoh <code>3101270</code> atau <code>AG01-01/WC,3101270</code>.<br>
+          <b>Stock take:</b> <code>rak,SKU</code> atau <code>rak,SKU,qty</code>, contoh <code>AG01-01/WC,3101270,1</code>. Tanpa qty, dipakai qty system. SKU kembar digabung (qty dijumlahkan).</p>
+        <input id="fileImport" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv">
+        <div id="impInfo" class="muted" style="margin:10px 0"></div>
+        <ul id="impPrev" class="hist"></ul>
+        <div style="height:8px"></div>
+        <button id="btnImport" class="btn primary block" disabled>Import ke sesi terpilih</button>
+        <div class="progress" id="impBar" hidden><i></i></div>
+        <p id="impMsg" class="muted"></p>
+      </div>
+      <div class="card">
+        <h2>Reset hasil scan</h2>
+        <p class="muted">Mengosongkan hasil scan sesi terpilih untuk mulai dari awal. Data terakhir dipindah ke sheet "recycle_bin" dan bisa dipulihkan.</p>
+        <button id="btnReset" class="btn danger block">Reset hasil scan sesi terpilih</button>
+        <div style="height:12px"></div>
+        <p id="binInfo" class="muted"></p>
+        <button id="btnRestore" class="btn block" disabled>Pulihkan data terakhir</button>
+      </div>
+      <div class="card">
+        <h2>Tutup sesi</h2>
+        <p class="muted">Sesi yang dipilih di atas tidak akan menerima scan baru. Rekap tetap bisa dilihat.</p>
+        <button id="btnSesiTutup" class="btn danger block">Tutup sesi terpilih</button>
+      </div>
+      <div class="card">
+        <h2>Hapus sesi</h2>
+        <p class="muted">Menghapus sesi terpilih secara permanen beserta semua hasil scan, sheet hasilnya, dan isi recycle bin sesi ini. Tidak bisa dikembalikan. Unduh Excel dulu bila datanya masih dibutuhkan.</p>
+        <button id="btnSesiHapus" class="btn danger block">Hapus sesi terpilih</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist" aria-label="Menu utama">
+    <button role="tab" id="nav-scan" aria-selected="true">Scan</button>
+    <button role="tab" id="nav-rekap" aria-selected="false">Rekap</button>
+    <button role="tab" id="nav-edit" aria-selected="false">Edit qty</button>
+    <button role="tab" id="nav-admin" aria-selected="false" hidden>Admin</button>
+  </nav>
+</div>
+
+<dialog id="dlgQty">
+  <h2 id="dqNama" style="margin-bottom:4px"></h2>
+  <p id="dqInfo" class="muted" style="margin:0 0 12px"></p>
+  <label for="dqQty">Jumlah fisik</label>
+  <div class="qtybox" style="margin-bottom:16px">
+    <button id="dqMin" aria-label="Kurangi jumlah">−</button>
+    <input id="dqQty" type="number" inputmode="numeric" min="0" max="9999">
+    <button id="dqPlus" aria-label="Tambah jumlah">+</button>
+  </div>
+  <div class="row"><button id="dqCancel" class="btn">Batal</button><button id="dqSave" class="btn primary">Simpan</button></div>
+</dialog>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ============ KONFIGURASI ============ */
+const CONFIG = {
+  // Di aplikasi Android: URL diambil dari menu Itemize > Setting Google Sheet (AndroidItemize.getApiUrl).
+  // Di browser biasa: pakai URL bawaan di bawah ini.
+  API_URL: (window.AndroidItemize ? (window.AndroidItemize.getApiUrl() || '') : 'https://script.google.com/macros/s/AKfycbzWg2OT0Di4t9MslzX4grJorFyAz-BDwcUxetq9M_OXkQyoZhvESD_tgvbmojbTzw/exec'),
+  SAME_CODE_COOLDOWN_MS: 1500                 // abaikan kode yang sama dalam jeda ini (mencegah double-scan kamera)
+};
+
+/* ============ UTIL ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+
+const S = {
+  pin: store.get('pin', ''), user: null, sesi: [],
+  sesiId: store.get('sesiId', ''), lokasi: store.get('lokasi', ''),
+  queue: store.get('queue', []), rekap: [], filter: 'all',
+  cam: null, flushing: false, lastCode: '', lastAt: 0
+};
+
+let toastTimer;
+function toast(msg, isErr){
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : ''); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3200);
+}
+
+let audioCtx;
+let SOUND = store.get('sound', true);
+function tone(freq, at, dur){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.frequency.value = freq; g.gain.value = .15;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(audioCtx.currentTime + at); o.stop(audioCtx.currentTime + at + dur);
+}
+// kind: true = SKU baru tercatat (nada tinggi pendek), 'dup' = sudah pernah discan (dua nada sedang), false = tidak dikenal / ditolak (nada rendah panjang)
+function beep(kind){
+  if (SOUND){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (kind === true) tone(880, 0, .09);
+      else if (kind === 'dup'){ tone(600, 0, .07); tone(600, .12, .07); }
+      else if (kind === 'q') tone(500, 0, .08);
+      else tone(220, 0, .3);
+    }catch(e){}
+  }
+  if (navigator.vibrate) navigator.vibrate(kind === true || kind === 'q' ? 40 : kind === 'dup' ? [40, 50, 40] : [80, 60, 80]);
+}
+
+/* ============ API ============ */
+class NetError extends Error {}
+async function api(action, data = {}){
+  if (!CONFIG.API_URL || CONFIG.API_URL.startsWith('GANTI')) throw new Error(window.AndroidItemize ? 'URL Google Sheet belum diisi. Buka menu Itemize > Setting Google Sheet' : 'API_URL belum diisi di index.html');
+  let res, j;
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), (action === 'scan' || action === 'scanBatch') ? 45000 : 120000);   // sinyal lemah: jangan menggantung selamanya
+  try{
+    try{
+      res = await fetch(CONFIG.API_URL, {
+        method: 'POST', redirect: 'follow', signal: ac.signal,
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},   // menghindari preflight CORS
+        body: JSON.stringify(Object.assign({action, pin: S.pin}, data))
+      });
+    }catch(e){ throw new NetError('Tidak ada koneksi'); }
+    try{ j = await res.json(); }catch(e){ throw new NetError('Respons server tidak valid'); }
+  } finally { clearTimeout(tm); }
+  if (!j.ok){
+    const err = new Error(j.error || 'Terjadi kesalahan');
+    err.retry = !/SKU kosong|Sesi tidak ditemukan|Sesi sudah selesai/i.test(err.message);   // hanya penolakan pasti yang membuang scan
+    throw err;
+  }
+  return j.data;
+}
+
+/* ============ LOGIN ============ */
+function showLogin(){ $('#login').hidden = false; $('#app').hidden = true; $('#pin').focus(); }
+async function doLogin(pin){
+  S.pin = pin;
+  $('#loginErr').textContent = '';
+  try{
+    S.user = await api('login');
+    store.set('pin', pin);
+    startApp();
+  }catch(e){
+    if (e instanceof NetError && store.get('user', null)){ S.user = store.get('user'); startApp(); return; }
+    S.pin = ''; $('#loginErr').textContent = e.message;
+  }
+}
+$('#btnLogin').onclick = () => doLogin($('#pin').value.trim());
+$('#pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btnLogin').click(); });
+$('#btnLogout').onclick = () => {
+  if (S.queue.length && !confirm(`${S.queue.length} scan belum terkirim. Keluar sekarang? Scan tetap tersimpan di perangkat dan terkirim setelah Anda masuk lagi.`)) return;
+  store.set('pin', ''); stopCam(); location.reload();
+};
+
+async function startApp(){
+  store.set('user', S.user);
+  $('#login').hidden = true; $('#app').hidden = false;
+  $('#whoName').textContent = S.user.nama + (S.user.role === 'admin' ? ' (admin)' : '');
+  $('#nav-admin').hidden = S.user.role !== 'admin';
+  $('#inLokasi').value = S.lokasi;
+  await loadSesi();
+  updateQueueBanner();
+  flush();
+  wakeOn();
+}
+
+/* ============ SESI ============ */
+async function loadSesi(){
+  try{ S.sesi = await api('listSesi'); store.set('sesiCache', S.sesi); }
+  catch(e){ S.sesi = store.get('sesiCache', []); if (!(e instanceof NetError)) toast(e.message, true); }
+  const sel = $('#selSesi');
+  sel.innerHTML = S.sesi.length
+    ? S.sesi.map(s => `<option value="${esc(s.sesi_id)}">${esc(s.nama_sesi)}${s.mode === 'itemize' ? ' · Itemize' : ''}${s.status !== 'aktif' ? ' (selesai)' : ''}</option>`).join('')
+    : '<option value="">Belum ada sesi</option>';
+  if (S.sesi.some(s => s.sesi_id === S.sesiId)) sel.value = S.sesiId;
+  else { const a = S.sesi.find(s => s.status === 'aktif') || S.sesi[0]; S.sesiId = a ? a.sesi_id : ''; sel.value = S.sesiId; }
+  store.set('sesiId', S.sesiId);
+  applyMode(true);
+}
+const curSesi = () => S.sesi.find(x => x.sesi_id === S.sesiId) || null;
+const curMode = () => { const c = curSesi(); return c && c.mode === 'itemize' ? 'itemize' : 'opname'; };
+function applyMode(resetTag){
+  const item = curMode() === 'itemize';
+  $('#wrapLokasi').hidden = item;
+  $('#nav-edit').hidden = item;
+  if (item && !$('#tab-edit').hidden) showTab('scan');
+  if (resetTag){
+    const b = $('#tagBox'); b.className = 'tag empty';
+    b.textContent = item
+      ? 'Belum ada scan. Scan SKU untuk menandai barang sudah discan. SKU yang sama tidak dihitung dua kali.'
+      : 'Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.';
+    refreshProgress(0);
+  }
+  if (typeof renderHist === 'function'){ renderHist(); NS.rows = []; NS.sesi = ''; CACHE = {sesi: '', map: {}}; restoreCache(); renderNS(); loadNS(true); }
+}
+$('#selSesi').onchange = e => {
+  S.sesiId = e.target.value; store.set('sesiId', S.sesiId); applyMode(true);
+  if (!$('#tab-rekap').hidden) loadRekap(); if (!$('#tab-edit').hidden) loadEdit(); if (!$('#tab-admin').hidden){ loadBin(); loadSheetLinks(); renderImport(); }
+};
+$('#inLokasi').oninput = e => { S.lokasi = e.target.value.trim().toUpperCase(); store.set('lokasi', S.lokasi); };
+
+/* ============ TAB ============ */
+function showTab(name){
+  ['scan', 'rekap', 'edit', 'admin'].forEach(t => {
+    $('#tab-' + t).hidden = t !== name;
+    $('#nav-' + t).setAttribute('aria-selected', t === name);
+  });
+  if (name !== 'scan'){ stopCam(); wakeOff(); }
+  if (name === 'rekap') loadRekap();
+  if (name === 'edit') loadEdit();
+  if (name === 'admin'){ loadToko(); loadBin(); loadSheetLinks(); }
+  if (name === 'scan'){ $('#inSku').focus(); wakeOn(); }
+}
+['scan', 'rekap', 'edit', 'admin'].forEach(t => $('#nav-' + t).onclick = () => showTab(t));
+
+/* ============ SCAN ============ */
+
+function submitCode(raw){
+  const sku = String(raw || '').trim();
+  if (!sku) return;
+  if (!S.sesiId){ toast('Pilih sesi opname dulu', true); beep(false); return; }
+  const item = curMode() === 'itemize';
+  if (!item && !S.lokasi){ toast('Isi rak / lokasi dulu', true); beep(false); $('#inLokasi').focus(); return; }
+  const now = Date.now();
+  if (sku === S.lastCode && now - S.lastAt < (S.cont ? 800 : CONFIG.SAME_CODE_COOLDOWN_MS)) return;
+  S.lastCode = sku; S.lastAt = now;
+  if (navigator.vibrate) navigator.vibrate(25);      // umpan balik instan, hasil menyusul dari server
+
+  const id = uuid(), pred = predict(sku, item);
+  S.queue.push({scan_id: id, sesi_id: S.sesiId, sku, lokasi: item ? '-' : S.lokasi, opt: pred ? pred.kind : undefined});
+  store.set('queue', S.queue);
+  S.lastScanId = id;
+  histPut(S.sesiId, {scan_id: id, sku, nama: pred && pred.r ? pred.r.nama : '', st: pred ? pred.st : '', baru: pred ? pred.baru : true,
+                     qty: pred && pred.r && !item ? pred.r.total_fisik : '', pend: true});
+  if (pred){
+    beep(pred.kind);                                           // bunyi & hasil langsung, server hanya mengonfirmasi
+    if (pred.r) renderResult(pred.r, navigator.onLine ? 'Mengirim…' : 'Tersimpan, dikirim saat ada sinyal'); else renderPending(sku);
+  }else{ if (!navigator.onLine) beep('q'); renderPending(sku); }
+  updateQueueBanner();
+  flush();
+  return true;
+}
+/* ---- Scanner fisik (USB/Bluetooth, mode keyboard) ----
+   Scanner mengetik seperti keyboard lalu menekan Enter (atau Tab, atau tanpa akhiran).
+   Perbaikan: (1) Enter/Tab sama-sama dianggap akhir scan, (2) scan tetap masuk walau fokus
+   sedang di kolom lain / tidak di mana-mana, (3) scanner tanpa akhiran dikirim otomatis
+   setelah jeda singkat, (4) kolom SKU selalu mengambil fokus kembali. */
+const SCANNER = {gap: 60, idle: 120, min: 3};     // ms antar-ketukan dianggap scanner, jeda akhir, panjang minimal
+function sendSku(v){ const x = String(v || '').trim(); $('#inSku').value = ''; if (x) submitCode(x); }
+const scanOn = () => !$('#tab-scan').hidden && !$('#app').hidden;
+let sBuf = '', sLast = 0, sTimer = 0, sLeak = null;
+function sFlush(){ clearTimeout(sTimer); const v = sBuf; sBuf = ''; if (v.length >= SCANNER.min) sendSku(v); else if (v) $('#inSku').value = v; }
+document.addEventListener('keydown', e => {
+  if (!scanOn() || e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target, tag = t && t.tagName, isSku = t && t.id === 'inSku';
+  const editable = tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && !isSku);
+  const now = Date.now(), fast = now - sLast < SCANNER.gap;
+  if (e.key === 'Enter' || e.key === 'Tab'){
+    if (sBuf){ e.preventDefault(); sFlush(); sLast = 0; return; }                       // akhir scan
+    if (isSku){ e.preventDefault(); sendSku($('#inSku').value); return; }               // ketik manual + Enter
+    if (t && t.id === 'inLokasi' && e.key === 'Enter'){ e.preventDefault(); $('#inSku').focus(); }
+    return;
+  }
+  if (e.key.length !== 1) return;                                                        // abaikan Shift, panah, dll.
+  if (isSku){ sLast = now; return; }                                                     // normal: biarkan masuk ke kolom SKU
+  if (editable && !fast && !sBuf){                                                       // bisa ketikan manual, bisa karakter pertama scanner
+    sLeak = {el: t, val: t.value, ch: e.key}; sLast = now; return;
+  }
+  if (!fast) sBuf = '';
+  if (sLeak && fast && !sBuf){                                                           // ternyata scanner: tarik kembali karakter pertama dari kolom itu
+    sLeak.el.value = sLeak.val; sBuf = sLeak.ch;
+    try{ sLeak.el.dispatchEvent(new Event('input', {bubbles: true})); }catch(_){}
+  }
+  sLeak = null;
+  e.preventDefault();
+  sBuf += e.key; sLast = now;
+  clearTimeout(sTimer); sTimer = setTimeout(sFlush, SCANNER.idle);
+}, true);
+// Scanner tanpa akhiran yang mengetik langsung ke kolom SKU: kirim setelah jeda
+let skuTimer = 0, skuFirst = 0, skuLen = 0;
+$('#inSku').addEventListener('input', () => {
+  const el = $('#inSku'), n = el.value.length, now = Date.now();
+  if (n <= 1){ skuFirst = now; }
+  skuLen = n; clearTimeout(skuTimer);
+  const burst = n >= SCANNER.min && (now - skuFirst) / n < SCANNER.gap;                  // rata-rata kecepatan ketik = scanner
+  if (burst) skuTimer = setTimeout(() => { if ($('#inSku').value.length === skuLen) sendSku($('#inSku').value); }, SCANNER.idle + 80);
+});
+// Fokus kembali ke kolom SKU setelah menyentuh area netral / menutup dialog
+document.addEventListener('click', e => {
+  if (!scanOn()) return;
+  if (e.target.closest('input, select, textarea, label, a, summary, details')) return;
+  setTimeout(() => { const a = document.activeElement; if (!a || a === document.body || a.tagName === 'BUTTON') { try{ $('#inSku').focus({preventScroll: true}); }catch(_){} } }, 0);
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && scanOn()) $('#inSku').focus({preventScroll: true}); });
+window.addEventListener('focus', () => { if (scanOn()) $('#inSku').focus({preventScroll: true}); });
+
+function renderPending(sku){
+  const b = $('#tagBox'); b.className = 'tag item pending';
+  b.innerHTML = `<div><div class="sk">${esc(sku)}</div><div class="nm">${navigator.onLine ? 'Mengirim…' : 'Tersimpan di perangkat, dikirim saat ada sinyal'}</div></div>`;
+}
+/* ---- Riwayat scan ---- */
+const HIST_MAX = 30;
+S.hist = store.get('hist', {});
+const histStamp = () => { const t = new Date(), z = n => String(n).padStart(2, '0'); return z(t.getHours()) + ':' + z(t.getMinutes()) + ':' + z(t.getSeconds()); };
+function histSave(sesiId){
+  const a = S.hist[sesiId] || []; if (a.length > HIST_MAX) a.length = HIST_MAX;
+  store.set('hist', S.hist);
+  if (sesiId === S.sesiId){ renderHist(); renderNS(); }
+}
+function histPut(sesiId, e){ (S.hist[sesiId] = S.hist[sesiId] || []).unshift(Object.assign({jam: histStamp()}, e)); histSave(sesiId); }
+function histUpdate(sesiId, scanId, patch){
+  const a = S.hist[sesiId] = S.hist[sesiId] || [];
+  let x = a.find(y => y.scan_id === scanId);
+  if (!x){ x = {scan_id: scanId, jam: histStamp()}; a.unshift(x); }
+  Object.assign(x, patch); histSave(sesiId);
+}
+function histDrop(sesiId, scanId){
+  const a = S.hist[sesiId] || [], i = a.findIndex(y => y.scan_id === scanId);
+  if (i >= 0) a.splice(i, 1); histSave(sesiId);
+}
+var NS = {rows: [], sesi: ''}, CACHE = {sesi: '', map: {}};
+function restoreCache(){                       // pakai salinan terakhir di perangkat sampai data segar dari server tiba
+  const id = S.sesiId; if (!id) return;
+  try{
+    const arr = JSON.parse(localStorage.getItem('cache_' + id) || 'null'); if (!arr) return;
+    const map = {}; arr.forEach(a => { map[a[0]] = {nama: a[1], qty_system: a[2], ada: !!a[3], scanned: !!a[4]}; });
+    (S.hist[id] || []).forEach(x => { if (x.baru !== false && map[x.sku]) map[x.sku].scanned = true; });
+    CACHE = {sesi: id, map}; NS.rows = []; 
+  }catch(e){}
+}
+async function loadNS(quiet){
+  if (!S.sesiId){ NS.rows = []; return renderNS(); }
+  const id = S.sesiId; if (!quiet) $('#nsNote').textContent = 'Memuat…';
+  try{
+    const r = await api('rekap', {sesi_id: id});
+    if (id !== S.sesiId) return;
+    const map = {};
+    r.rows.forEach(x => { map[x.sku] = {nama: x.nama, qty_system: x.qty_system, ada: x.status !== 'Tidak ada di system', scanned: x.status !== 'Belum di-scan'}; });
+    CACHE = {sesi: id, map};
+    try{ const arr = Object.keys(map).map(k => [k, map[k].nama, map[k].qty_system, map[k].ada ? 1 : 0, map[k].scanned ? 1 : 0]), js = JSON.stringify(arr); if (js.length < 2500000) localStorage.setItem('cache_' + id, js); }catch(e){}
+    NS.rows = r.rows.filter(x => x.status === 'Belum di-scan'); NS.sesi = id; renderNS();
+  }catch(e){ if (!quiet){ $('#nsNote').textContent = ''; toast(e.message, true); } }
+}
+function renderNS(){
+  const q = $('#nsFind').value.trim().toLowerCase(), MAX = 15;
+  const done = new Set((S.hist[S.sesiId] || []).filter(x => x.baru !== false).map(x => x.sku));
+  const sc = k => CACHE.sesi === S.sesiId && CACHE.map[k] && CACHE.map[k].scanned;
+  const rows = NS.rows.filter(r => !done.has(r.sku) && !sc(r.sku) && (!q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q)));
+  $('#nsList').innerHTML = rows.slice(0, MAX).map(r =>
+    `<li><div class="hs">${esc(r.sku)}<span class="hn">${esc(r.nama)}</span></div>
+     <div class="hr"><button class="btn hx" data-sku="${esc(r.sku)}">Catat</button></div></li>`).join('');
+  $('#nsNote').textContent = NS.sesi !== S.sesiId ? '' : `${rows.length} barang belum discan` + (rows.length > MAX ? `, menampilkan ${MAX} pertama. Ketik untuk mempersempit.` : '') + '. Hasil scan petugas lain muncul setelah Muat ulang.';
+}
+$('#nsBox').addEventListener('toggle', () => { if ($('#nsBox').open && NS.sesi !== S.sesiId) loadNS(); });
+$('#nsReload').onclick = () => loadNS();
+$('#nsFind').oninput = renderNS;
+$('#nsList').onclick = e => {
+  const b = e.target.closest('.hx'); if (!b) return;
+  const sku = b.dataset.sku;
+  if (confirm(`Catat ${sku} sebagai sudah discan (tanpa barcode)?`)) submitCode(sku);
+};
+function histRemove(sesiId, sku, scanId){
+  const a = S.hist[sesiId] || [], i = a.findIndex(x => scanId ? x.scan_id === scanId : x.sku === sku);
+  if (i >= 0){ a.splice(i, 1); store.set('hist', S.hist); }
+  renderHist();
+}
+function renderHist(){
+  const a = S.hist[S.sesiId] || [];
+  $('#histEmpty').hidden = a.length > 0;
+  $('#histList').innerHTML = a.map((x, i) =>
+    `<li><div class="hs">${esc(x.sku)}<span class="hn">${esc(x.nama)}</span></div>
+     <div class="hr">${x.qty !== '' ? '<b>' + esc(x.qty) + '</b> pcs<br>' : ''}${x.pend ? '⏳ ' : ''}${esc(x.st || 'Mengirim…')}<br>${esc(x.jam)}
+     ${x.baru !== false && !x.pend ? `<br><button class="btn danger hx" data-i="${i}">Batalkan</button>` : ''}</div></li>`).join('');
+}
+$('#histList').onclick = e => {
+  const b = e.target.closest('.hx'); if (!b) return;
+  const x = (S.hist[S.sesiId] || [])[Number(b.dataset.i)];
+  if (x && confirm(`Batalkan scan ${x.sku}?`)) undoScan(x);
+};
+function statusChip(total, sys, ada){
+  if (!ada) return '<span class="chip unk">? Tidak ada di system</span>';
+  if (total === sys) return '<span class="chip ok">✓ Sesuai</span>';
+  return total < sys ? `<span class="chip short">▼ Kurang ${sys - total}</span>` : `<span class="chip over">▲ Lebih ${total - sys}</span>`;
+}
+function renderItem(r, note, undone){
+  const b = $('#tagBox'); b.className = 'tag item';
+  const chip = undone ? '<span class="chip none">○ Dibatalkan, belum discan</span>'
+    : r.ada_di_master === false ? '<span class="chip unk">? Tidak ada di system</span>'
+    : r.baru ? '<span class="chip ok">✓ Sudah discan</span>' : '<span class="chip over">⚠ Sudah pernah discan</span>';
+  b.innerHTML = `<div class="sk">${esc(r.sku)}</div><div class="nm">${esc(r.nama)}</div>
+    <div class="meta">${chip}${note ? `<span>${esc(note)}</span>` : ''}</div>`;
+}
+function renderResult(r, note, undone){
+  if ((r.mode || curMode()) === 'itemize') return renderItem(r, note, undone);
+  const b = $('#tagBox'); b.className = 'tag';
+  b.innerHTML = `
+    <div class="sk">${esc(r.sku)}</div>
+    <div class="cnt"><span class="big">${r.total_fisik}</span><span class="cap">tersimpan</span></div>
+    <div class="nm">${esc(r.nama)}</div>
+    <div class="meta">${statusChip(r.total_fisik, r.qty_system, r.ada_di_master !== false)}<span>System: <b>${r.qty_system}</b></span>${note ? `<span>${esc(note)}</span>` : ''}
+      <button class="btn" id="btnTagEdit" style="min-height:40px;padding:6px 14px">Ubah qty</button></div>`;
+  $('#btnTagEdit').onclick = () => openQty(r);
+}
+
+const BATCH = 25;                                // scan yang dikirim sekaligus dalam satu permintaan
+let progTimer = null;
+function refreshProgress(delay){
+  clearTimeout(progTimer);
+  progTimer = setTimeout(loadProgress, delay == null ? 700 : delay);
+}
+function paintProgress(r){
+  $('#progBox').hidden = false;
+  $('#progPct').textContent = r.persen + '%';
+  $('#progTxt').textContent = `${r.sudah} dari ${r.total} SKU`;
+  $('#progBar').style.width = Math.min(100, r.persen) + '%';
+  $('#pgSudah').textContent = r.sudah; $('#pgBelum').textContent = r.belum; $('#pgLuar').textContent = r.luar;
+}
+// Samakan tanda "sudah discan" di perangkat ini dengan data server (termasuk scan petugas lain & pembatalan)
+function mergeScanned(id, list){
+  if (CACHE.sesi !== id) return;
+  const set = new Set(list), pend = new Set(S.queue.filter(q => q.sesi_id === id).map(q => q.sku));
+  let lost = false;
+  Object.keys(CACHE.map).forEach(k => {
+    const c = CACHE.map[k], now = set.has(k) || pend.has(k);
+    if (c.scanned && !now) lost = true;
+    c.scanned = now;
+  });
+  list.forEach(k => { if (!CACHE.map[k]) CACHE.map[k] = {nama: '(Tidak ada di system)', qty_system: 0, ada: false, scanned: true}; });
+  if (lost) loadNS(true); else renderNS();
+}
+async function loadProgress(){
+  const id = S.sesiId;
+  if (!id){ $('#progBox').hidden = true; return; }
+  if (S.flushing || S.queue.length) return refreshProgress(1500);   // tunggu scan terkirim dulu
+  try{
+    if (S.noSync){ const r = await api('progress', {sesi_id: id}); if (id === S.sesiId) paintProgress(r); return; }
+    const r = await api('sync', {sesi_id: id, sig: S.syncSig && S.syncSig.id === id ? S.syncSig.v : ''});
+    if (id !== S.sesiId) return;
+    S.syncSig = {id, v: r.sig};
+    paintProgress(r.progress);
+    if (!r.same) mergeScanned(id, r.scanned || []);
+  }catch(e){ if (/Aksi tidak dikenal/i.test(e.message)) S.noSync = true; }
+}
+let syncTimer = null;
+function scheduleSync(sesiId){                   // perbarui sheet hasil setelah berhenti scan
+  refreshProgress(700);
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    if (S.queue.length || S.flushing) return scheduleSync(sesiId);
+    try{ await api('syncHasil', {sesi_id: sesiId}); }catch(e){}
+  }, 6000);
+}
+const kindOf = v => v.baru === false ? 'dup' : (v.mode === 'itemize' ? !!(v.ada_di_master && v.baru) : !!v.ada_di_master);
+const stText = r => r.ada_di_master === false ? '? Di luar system' : r.baru === false ? '⚠ Sudah pernah' : '✓ Tercatat';
+// Tebakan hasil dari data rekap yang sudah dimuat. Server tetap menjadi penentu dan mengoreksi bila beda.
+function predict(sku, item){
+  if (CACHE.sesi !== S.sesiId) return null;
+  const c = CACHE.map[sku];
+  if (c && c.scanned) return {kind: 'dup', baru: false, st: '⚠ Sudah pernah', r: null};
+  const r = {sku, nama: c ? c.nama : '(Tidak ada di system)', ada_di_master: !!(c && c.ada), qty_system: c ? c.qty_system : 0,
+             total_fisik: c && c.ada ? c.qty_system : 1, baru: true, mode: item ? 'itemize' : 'opname'};
+  CACHE.map[sku] = c || {nama: r.nama, qty_system: 0, ada: false, scanned: false};
+  CACHE.map[sku].scanned = true;
+  return {kind: kindOf(r), baru: true, st: stText(r), r};
+}
+function onScanOk(it, v){
+  S.queue = S.queue.filter(q => q.scan_id !== it.scan_id); store.set('queue', S.queue);
+  if (CACHE.sesi === it.sesi_id){
+    const c = CACHE.map[v.sku] = CACHE.map[v.sku] || {};
+    c.nama = v.nama; c.qty_system = v.qty_system; c.ada = v.ada_di_master !== false; c.scanned = true;
+  }
+  histUpdate(it.sesi_id, it.scan_id, {sku: v.sku, nama: v.nama || '', st: stText(v), baru: v.baru !== false,
+                                      qty: v.mode === 'itemize' ? '' : v.total_fisik, pend: false});
+  const k = kindOf(v);
+  if (it.opt !== k) beep(k);                                     // bunyi hanya jika tebakan awal meleset
+  if (it.scan_id === S.lastScanId || !S.lastScanId){
+    renderResult(v, v.mode === 'itemize' ? (v.baru ? 'Tercatat' : 'Tidak dicatat dua kali')
+                                         : (v.baru ? 'Disimpan otomatis' : 'Sudah pernah discan, qty tidak ditambah'));
+  }
+  scheduleSync(it.sesi_id); updateQueueBanner();
+}
+function onScanErr(it, err){
+  S.queue = S.queue.filter(q => q.scan_id !== it.scan_id); store.set('queue', S.queue);
+  const c = CACHE.sesi === it.sesi_id && CACHE.map[it.sku];
+  if (c && it.opt !== 'dup') c.scanned = false;
+  histDrop(it.sesi_id, it.scan_id);
+  toast(err.message, true); beep(false);
+  if (it.scan_id === S.lastScanId){ $('#tagBox').className = 'tag empty'; $('#tagBox').textContent = 'Scan terakhir ditolak: ' + err.message; }
+  updateQueueBanner();
+}
+let srvWarnAt = 0;
+function srvWarn(msg){                                          // error sementara dari server: scan TETAP di antrean, dicoba lagi
+  if (Date.now() - srvWarnAt < 60000) return;
+  srvWarnAt = Date.now(); toast('Server: ' + msg + '. Scan tetap tersimpan dan dicoba lagi otomatis.', true);
+}
+/* Scan beruntun: semua scan yang menunggu dikirim sekaligus (maks. BATCH per permintaan) dan layar sudah
+   menampilkan hasilnya lebih dulu (lihat predict). Selama satu permintaan berjalan, scan berikutnya menumpuk
+   di antrean lalu dikirim bersama di putaran berikutnya, jadi tidak ada penundaan per scan. */
+async function flush(){
+  if (S.flushing) return;
+  S.flushing = true;
+  let net = false;
+  try{
+    while (!net && S.queue.length){
+      const sid = S.queue[0].sesi_id;
+      const batch = S.queue.filter(q => q.sesi_id === sid).slice(0, BATCH);
+      if (S.noBatch){                                      // Code.gs lama belum punya scanBatch: kirim satu per satu (3 paralel)
+        await Promise.all(batch.slice(0, 3).map(it => api('scan', it)
+          .then(v => onScanOk(it, v), er => { if (er instanceof NetError) net = true; else if (er.retry){ net = true; srvWarn(er.message); } else onScanErr(it, er); })
+          .catch(() => {})));
+        continue;
+      }
+      let res;
+      try{ res = await api('scanBatch', {sesi_id: sid, items: batch.map(q => ({scan_id: q.scan_id, sku: q.sku, lokasi: q.lokasi}))}); }
+      catch(er){
+        if (er instanceof NetError){ net = true; break; }
+        if (/Aksi tidak dikenal/i.test(er.message)){ S.noBatch = true; continue; }
+        if (er.retry){ net = true; srvWarn(er.message); break; }
+        batch.forEach(it => onScanErr(it, er)); continue;  // penolakan pasti (sesi tutup / tidak ada)
+      }
+      const by = {}; (res.results || []).forEach(r => by[r.scan_id] = r);
+      batch.forEach(it => {
+        const r = by[it.scan_id];
+        if (!r){ net = true; return; }                      // tidak dijawab: tetap di antrean, dicoba lagi
+        if (r.error){
+          if (/SKU kosong/i.test(r.error)) onScanErr(it, new Error(r.error)); else { net = true; srvWarn(r.error); }
+        }else onScanOk(it, r.data);
+      });
+    }
+  } finally { S.flushing = false; updateQueueBanner(); }
+  if (!net && S.queue.length) flush();
+}
+function updateQueueBanner(){
+  const b = $('#queueBanner'), n = S.queue.length, off = !navigator.onLine;
+  b.hidden = n === 0 && !off;
+  if (n) b.textContent = `${n} scan menunggu terkirim. Tersimpan di perangkat dan dikirim otomatis saat ada koneksi.`;
+  else if (off) b.textContent = 'Mode offline. Scan disimpan di perangkat dan dikirim otomatis saat sinyal kembali.';
+}
+window.addEventListener('online', () => { updateQueueBanner(); flush(); });
+window.addEventListener('offline', updateQueueBanner);
+setInterval(() => { if (S.queue.length) flush(); }, 15000);
+// Segarkan progres & tanda "sudah discan" dari petugas lain secara berkala (hanya saat layar Scan terbuka dan antrean kosong)
+setInterval(() => { if (!document.hidden && !$('#app').hidden && scanOn() && navigator.onLine && !S.flushing && !S.queue.length && S.sesiId) refreshProgress(0); }, 10000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden && S.sesiId) refreshProgress(300); });
+
+$('#btnUndo').onclick = () => undoScan((S.hist[S.sesiId] || []).find(x => x.baru !== false && !x.pend));   // scan terbaru yang benar-benar tercatat (bukan duplikat)
+async function undoScan(top){
+  if (!S.sesiId) return toast('Pilih sesi dulu', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  try{
+    const r = await api('undo', {sesi_id: S.sesiId, scan_id: top ? top.scan_id : '', sku: top ? top.sku : ''});
+    histRemove(S.sesiId, r.sku, top && top.scan_id);
+    if (CACHE.sesi === S.sesiId && CACHE.map[r.sku]){ CACHE.map[r.sku].scanned = r.total_fisik > 0; renderNS(); }
+    renderResult(r, r.mode === 'itemize' ? 'Scan dibatalkan' : `Dibatalkan: −${r.qty}`, true); toast('Scan dibatalkan'); scheduleSync(S.sesiId);
+  }catch(e){ toast(e.message, true); }
+}
+
+/* ---- Kamera ---- */
+async function startCam(){
+  if (!window.Html5Qrcode) return toast('Library kamera gagal dimuat. Cek koneksi internet.', true);
+  $('#reader').hidden = false;
+  const F = Html5QrcodeSupportedFormats;
+  S.cam = new Html5Qrcode('reader', {
+    formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF, F.QR_CODE],
+    experimentalFeatures: {useBarCodeDetectorIfSupported: true}, verbose: false
+  });
+  try{
+    await S.cam.start({facingMode: 'environment'}, {fps: S.cont ? 20 : 10, disableFlip: true, qrbox: (w, h) => ({width: Math.floor(w * 0.9), height: Math.floor(Math.min(h * 0.65, 200))})}, code => { if (S.paused) return; if (submitCode(code) && !S.cont) pauseCam(); }, () => {});
+    $('#btnCam').textContent = 'Tutup kamera';
+    try{
+      S.torch = S.cam.getRunningTrackCameraCapabilities().torchFeature(); S.torchOn = false;
+      $('#btnTorch').hidden = !S.torch.isSupported(); $('#btnTorch').textContent = '🔦 Senter: Mati';
+    }catch(e){ $('#btnTorch').hidden = true; }
+  }catch(e){
+    $('#reader').hidden = true; S.cam = null; $('#btnNext').hidden = true;
+    const why = !window.isSecureContext ? 'Halaman harus dibuka lewat alamat https:// (bukan file lokal)'
+      : String((e && (e.message || e.name)) || e).slice(0, 80);
+    toast('Kamera tidak bisa dibuka. ' + why, true);
+  }
+}
+async function stopCam(){
+  if (S.cam){ try{ await S.cam.stop(); S.cam.clear(); }catch(e){} S.cam = null; }
+  $('#reader').hidden = true; $('#btnCam').textContent = 'Buka kamera';
+  $('#btnTorch').hidden = true; S.torch = null; S.torchOn = false; S.paused = false; $('#btnNext').hidden = true;
+}
+$('#btnTorch').onclick = async () => {
+  if (!S.torch) return;
+  try{ await S.torch.apply(!S.torchOn); S.torchOn = !S.torchOn; $('#btnTorch').textContent = '🔦 Senter: ' + (S.torchOn ? 'Nyala' : 'Mati'); }
+  catch(e){ toast('Senter tidak bisa dinyalakan di perangkat ini', true); }
+};
+S.cont = store.get('cont', true); S.paused = false;
+function paintMode(){ $('#btnMode').textContent = S.cont ? '📷 Kamera: Beruntun' : '📷 Kamera: Satu-satu'; }
+function pauseCam(){ try{ S.cam.pause(true); S.paused = true; $('#btnNext').hidden = false; }catch(e){} }
+function resumeCam(){ try{ S.cam.resume(); }catch(e){} S.paused = false; $('#btnNext').hidden = true; $('#inSku').value = ''; }
+$('#btnNext').onclick = resumeCam;
+$('#btnMode').onclick = async () => {
+  S.cont = !S.cont; store.set('cont', S.cont); paintMode();
+  toast(S.cont ? 'Beruntun: kamera terus aktif, jeda kode sama 0,8 detik' : 'Satu-satu: kamera berhenti setelah tiap scan, tekan Scan berikutnya');
+  if (S.cam){ await stopCam(); startCam(); }
+};
+paintMode();
+function paintSound(){ $('#btnSound').textContent = SOUND ? '🔊 Suara: Aktif' : '🔇 Suara: Mati'; }
+$('#btnSound').onclick = () => { SOUND = !SOUND; store.set('sound', SOUND); paintSound(); if (SOUND) beep(true); };
+paintSound();
+
+/* Layar tetap menyala selama di menu Scan */
+let wake = null;
+async function wakeOn(){ try{ if (navigator.wakeLock && !wake){ wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } }catch(e){} }
+function wakeOff(){ try{ if (wake) wake.release(); }catch(e){} wake = null; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden && !$('#tab-scan').hidden) wakeOn(); });
+$('#btnCam').onclick = () => S.cam ? stopCam() : startCam();
+
+/* ============ REKAP ============ */
+const ST_OPN = {
+  all:   {label: 'Semua'},
+  'Belum di-scan': {label: 'Belum discan', cls: 'none', icon: '○'},
+  Kurang: {label: 'Kurang', cls: 'short', icon: '▼'},
+  Lebih:  {label: 'Lebih', cls: 'over', icon: '▲'},
+  'Tidak ada di system': {label: 'Di luar system', cls: 'unk', icon: '?'},
+  Sesuai: {label: 'Sesuai', cls: 'ok', icon: '✓'}
+};
+const ST_ITM = {
+  all:   {label: 'Semua'},
+  'Belum di-scan': {label: 'Belum discan', cls: 'short', icon: '○'},
+  'Sudah di-scan': {label: 'Sudah discan', cls: 'ok', icon: '✓'},
+  'Tidak ada di system': {label: 'Di luar system', cls: 'unk', icon: '?'}
+};
+async function loadRekap(){
+  if (!S.sesiId){ S.rekap = []; renderRekap(); return; }
+  $('#rekapNote').textContent = 'Memuat…';
+  try{
+    const r = await api('rekap', {sesi_id: S.sesiId});
+    S.rekap = r.rows; S.rekapSheet = r.sheet; S.rekapMode = r.mode; renderRekap();
+  }catch(e){ $('#rekapNote').textContent = ''; toast(e.message, true); }
+}
+function renderRekap(){
+  const item = S.rekapMode === 'itemize', ST = item ? ST_ITM : ST_OPN;
+  if (!ST[S.filter]) S.filter = 'all';
+  $('#rekapSheet').textContent = S.rekapSheet ? `Hasil scan tersimpan otomatis di sheet "${S.rekapSheet}" pada Google Sheet.` : '';
+  $('#rekapHead').innerHTML = item
+    ? '<tr><th>Barang</th><th>Status</th></tr>'
+    : '<tr><th>Barang</th><th class="n">System</th><th class="n">Fisik</th><th class="n">Selisih</th><th>Status</th></tr>';
+  const counts = {all: S.rekap.length};
+  S.rekap.forEach(r => counts[r.status] = (counts[r.status] || 0) + 1);
+  $('#sum').innerHTML = Object.keys(ST).map(k =>
+    `<button data-f="${esc(k)}" aria-pressed="${S.filter === k}"><b>${counts[k] || 0}</b><span>${ST[k].label}</span></button>`).join('');
+  $('#sum').querySelectorAll('button').forEach(b => b.onclick = () => { S.filter = b.dataset.f; renderRekap(); });
+
+  const q = $('#inFind').value.trim().toLowerCase();
+  let rows = S.rekap.filter(r => (S.filter === 'all' || r.status === S.filter) &&
+    (!q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q)));
+  const rank = {'Belum di-scan': 0, 'Tidak ada di system': 1, 'Sudah di-scan': 2};
+  if (item) rows.sort((a, b) => rank[a.status] - rank[b.status]);
+  else rows.sort((a, b) => Math.abs(b.selisih) - Math.abs(a.selisih));
+  const MAX = 300, shown = rows.slice(0, MAX), cols = item ? 2 : 5;
+  $('#rekapBody').innerHTML = shown.length ? shown.map(r => {
+    const st = ST[r.status], chip = `<span class="chip ${st.cls}">${st.icon} ${esc(st.label)}</span>`;
+    const nm = `<td><span class="rsku">${esc(r.sku)}</span><small>${esc(r.nama)}${!item && r.lokasi ? ' · ' + esc(r.lokasi) : ''}</small></td>`;
+    if (item) return `<tr>${nm}<td>${chip}${r.petugas ? `<small>${esc(r.petugas)} · ${esc(r.waktu)}</small>` : ''}</td></tr>`;
+    return `<tr>${nm}<td class="n">${r.qty_system}</td><td class="n">${r.qty_fisik}</td>
+      <td class="n"><b>${r.selisih > 0 ? '+' : ''}${r.selisih}</b></td><td>${chip}</td></tr>`;
+  }).join('') : `<tr><td colspan="${cols}" class="muted">Tidak ada data. Upload data system lalu mulai scan.</td></tr>`;
+  $('#rekapNote').textContent = rows.length > MAX ? `Menampilkan ${MAX} dari ${rows.length} baris. Unduh Excel untuk data lengkap.` : '';
+}
+$('#btnReload').onclick = loadRekap;
+$('#inFind').oninput = renderRekap;
+
+function exportDef(){
+  if (S.rekapMode === 'itemize') return {
+    head: ['SKU', 'Nama barang', 'Status', 'Petugas', 'Waktu scan'],
+    line: r => [String(r.sku), r.nama, r.status, r.petugas || '', r.waktu || ''],
+    wch: [18, 36, 20, 14, 19],
+    sheets: [['Hasil Itemize', () => true], ['Belum Discan', r => r.status === 'Belum di-scan'],
+             ['Sudah Discan', r => r.status === 'Sudah di-scan'], ['Di Luar System', r => r.status === 'Tidak ada di system']]
+  };
+  return {
+    head: ['SKU', 'Nama barang', 'Lokasi', 'Qty system', 'Qty fisik', 'Selisih', 'Status', 'Petugas', 'Waktu scan'],
+    line: r => [String(r.sku), r.nama, r.lokasi || '', r.qty_system, r.qty_fisik, r.selisih, r.status, r.petugas || '', r.waktu || ''],
+    wch: [18, 36, 14, 11, 10, 9, 20, 14, 19],
+    sheets: [['Hasil Scan', () => true], ['Belum Discan', r => r.status === 'Belum di-scan'],
+             ['Di Luar System', r => r.status === 'Tidak ada di system'], ['Selisih', r => r.status === 'Kurang' || r.status === 'Lebih']]
+  };
+}
+$('#btnXlsx').onclick = () => {
+  if (!S.rekap.length) return toast('Belum ada data rekap', true);
+  if (typeof XLSX === 'undefined') return toast('Pustaka Excel belum termuat. Periksa koneksi internet.', true);
+  const d = exportDef(), wb = XLSX.utils.book_new();
+  d.sheets.forEach(([name, f]) => {
+    const ws = XLSX.utils.aoa_to_sheet([d.head].concat(S.rekap.filter(f).map(d.line)));
+    ws['!cols'] = d.wch.map(w => ({wch: w}));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+  if (window.AndroidItemize){
+    window.AndroidItemize.saveFile(`${S.sesiId}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', XLSX.write(wb, {bookType: 'xlsx', type: 'base64'}));
+    return;
+  }
+  XLSX.writeFile(wb, `${S.sesiId}.xlsx`);
+};
+$('#btnCsv').onclick = () => {
+  if (!S.rekap.length) return toast('Belum ada data rekap', true);
+  const d = exportDef(), q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = [d.head.map(q).join(',')].concat(S.rekap.map(r => d.line(r).map(q).join(',')));
+  if (window.AndroidItemize){
+    const u8 = new TextEncoder().encode('\uFEFF' + lines.join('\r\n'));
+    let bin = ''; for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    window.AndroidItemize.saveFile(`${S.sesiId}.csv`, 'text/csv', btoa(bin));
+    return;
+  }
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${S.sesiId}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* ============ EDIT QTY ============ */
+let Q = null, EDIT = [];
+function openQty(r){
+  Q = {sku: r.sku};
+  $('#dqNama').textContent = r.nama; $('#dqInfo').textContent = `${r.sku} · System: ${r.qty_system}`;
+  $('#dqQty').value = r.total_fisik ?? r.qty_fisik ?? 0;
+  $('#dlgQty').showModal(); $('#dqQty').select();
+}
+const dq = d => $('#dqQty').value = Math.max(0, Math.min(9999, (parseInt($('#dqQty').value, 10) || 0) + d));
+$('#dqMin').onclick = () => dq(-1); $('#dqPlus').onclick = () => dq(1);
+$('#dqCancel').onclick = () => $('#dlgQty').close();
+$('#dqSave').onclick = async () => {
+  const qty = parseInt($('#dqQty').value, 10);
+  if (isNaN(qty) || qty < 0 || qty > 9999) return toast('Qty harus 0 - 9999', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  try{
+    const r = await api('setQty', {sesi_id: S.sesiId, sku: Q.sku, qty, lokasi: S.lokasi});
+    $('#dlgQty').close(); toast('Qty disimpan'); scheduleSync(S.sesiId);
+    if (!$('#tab-edit').hidden) loadEdit(); else renderResult(r, 'Qty diubah manual');
+  }catch(e){ toast(e.message, true); }
+};
+async function loadEdit(){
+  if (!S.sesiId){ EDIT = []; renderEdit(); return; }
+  $('#editNote').textContent = 'Memuat…';
+  try{ EDIT = (await api('listCounted', {sesi_id: S.sesiId})).rows; renderEdit(); }
+  catch(e){ $('#editNote').textContent = ''; toast(e.message, true); }
+}
+function renderEdit(){
+  const q = $('#inEditFind').value.trim().toLowerCase(), MAX = 200;
+  const rows = EDIT.filter(r => !q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q));
+  $('#editBody').innerHTML = rows.length ? rows.slice(0, MAX).map(r =>
+    `<tr><td>${esc(r.nama)}<small>${esc(r.sku)}</small></td><td class="n">${r.qty_system}</td><td class="n"><b>${r.qty_fisik}</b></td>
+     <td><button class="btn" data-sku="${esc(r.sku)}" style="min-height:40px;padding:6px 14px">Ubah</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="muted">Belum ada SKU yang discan di sesi ini.</td></tr>';
+  $('#editBody').querySelectorAll('button').forEach(b => b.onclick = () => openQty(EDIT.find(r => r.sku === b.dataset.sku)));
+  $('#editNote').textContent = rows.length > MAX ? `Menampilkan ${MAX} dari ${rows.length}. Gunakan pencarian.` : '';
+}
+$('#btnEditReload').onclick = loadEdit;
+$('#inEditFind').oninput = renderEdit;
+
+/* ============ ADMIN ============ */
+$('#btnSesiBuat').onclick = async () => {
+  const nama = $('#inSesiNama').value.trim();
+  if (!nama) return toast('Isi nama sesi dulu', true);
+  try{
+    const r = await api('createSesi', {nama, mode: $('#selSesiMode').value});
+    S.sesiId = r.sesi_id; store.set('sesiId', S.sesiId);
+    $('#inSesiNama').value = ''; await loadSesi(); toast('Sesi dibuat');
+  }catch(e){ toast(e.message, true); }
+};
+$('#btnSesiTutup').onclick = async () => {
+  if (!S.sesiId) return toast('Pilih sesi dulu', true);
+  if (!confirm('Tutup sesi ini? Scan baru tidak bisa ditambah lagi.')) return;
+  try{ await api('closeSesi', {sesi_id: S.sesiId}); await loadSesi(); toast('Sesi ditutup'); }
+  catch(e){ toast(e.message, true); }
+};
+
+async function loadSheetLinks(){
+  if (!S.user || S.user.role !== 'admin') return;
+  const a = $('#lnkSheet'), h = $('#lnkHasil'), m = $('#lnkMsg');
+  h.hidden = true; m.textContent = 'Memuat link…';
+  try{
+    const r = await api('sheetUrl', {sesi_id: S.sesiId});
+    a.href = r.url; a.hidden = !r.url;
+    if (r.hasil){ h.href = r.hasil; h.hidden = false; }
+    m.textContent = '';
+  }catch(e){ a.hidden = true; m.textContent = 'Link belum bisa dimuat: ' + e.message; }
+}
+async function loadToko(){
+  if (!S.user || S.user.role !== 'admin') return;
+  try{ const t = await api('getToko'); $('#inTokoKode').value = t.kode; $('#inTokoNama').value = t.nama; }catch(e){}
+}
+$('#btnTokoSimpan').onclick = async () => {
+  const kode = $('#inTokoKode').value.trim(), nama = $('#inTokoNama').value.trim();
+  if (!kode || !nama) return toast('Isi kode toko dan nama toko', true);
+  try{
+    const t = await api('setToko', {kode, nama});
+    $('#inTokoKode').value = t.kode; $('#inTokoNama').value = t.nama; toast('Data toko disimpan');
+  }catch(e){ toast(e.message, true); }
+};
+
+async function loadBin(){
+  if (!S.user || S.user.role !== 'admin') return;
+  const info = $('#binInfo'), btn = $('#btnRestore');
+  btn.disabled = true; info.textContent = '';
+  if (!S.sesiId) return;
+  try{
+    const r = await api('binInfo', {sesi_id: S.sesiId});
+    if (r.ada){
+      info.textContent = `Data terakhir di recycle bin: ${r.dihapus_pada}, oleh ${r.dihapus_oleh} (${r.sku} SKU, ${r.baris} baris).`;
+      btn.disabled = false;
+    }else info.textContent = 'Belum ada data di recycle bin untuk sesi ini.';
+  }catch(e){}
+}
+$('#btnReset').onclick = async () => {
+  if (!S.sesiId) return toast('Pilih sesi dulu', true);
+  const c = curSesi(); if (c && c.status !== 'aktif') return toast('Sesi sudah selesai, tidak bisa direset', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  if (!confirm('Reset hasil scan sesi ini dan mulai dari awal?\n\nData saat ini dipindah ke recycle bin dan masih bisa dipulihkan.')) return;
+  try{
+    const r = await api('resetSesi', {sesi_id: S.sesiId});
+    delete S.hist[S.sesiId]; store.set('hist', S.hist); try{ localStorage.removeItem('cache_' + S.sesiId); }catch(e){}
+    toast(`Direset. ${r.sku} SKU dipindah ke recycle bin`);
+    applyMode(true); loadBin(); if (!$('#tab-rekap').hidden) loadRekap();
+  }catch(e){ toast(e.message, true); }
+};
+$('#btnRestore').onclick = async () => {
+  if (!S.sesiId) return toast('Pilih sesi dulu', true);
+  const c = curSesi(); if (c && c.status !== 'aktif') return toast('Sesi sudah selesai, tidak bisa dipulihkan', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  if (!confirm('Pulihkan data terakhir dari recycle bin?\n\nHasil scan yang ada sekarang (jika ada) akan dipindah ke recycle bin sebagai gantinya.')) return;
+  try{
+    const r = await api('restoreSesi', {sesi_id: S.sesiId});
+    toast(`Dipulihkan: ${r.sku} SKU`);
+    applyMode(true); loadBin(); if (!$('#tab-rekap').hidden) loadRekap();
+  }catch(e){ toast(e.message, true); }
+};
+
+$('#btnSesiHapus').onclick = async () => {
+  const c = curSesi();
+  if (!c) return toast('Pilih sesi dulu', true);
+  if (!confirm(`Hapus sesi "${c.nama_sesi}" secara permanen?\n\nSemua hasil scan, sheet hasil, dan isi recycle bin sesi ini ikut terhapus dan tidak bisa dikembalikan.`)) return;
+  if ((prompt('Ketik HAPUS (huruf besar) untuk melanjutkan:') || '').trim() !== 'HAPUS') return toast('Dibatalkan', true);
+  const id = c.sesi_id;
+  try{
+    await api('deleteSesi', {sesi_id: id});
+    S.queue = S.queue.filter(q => q.sesi_id !== id); store.set('queue', S.queue); updateQueueBanner();
+    delete S.hist[id]; store.set('hist', S.hist); try{ localStorage.removeItem('cache_' + id); }catch(e){}
+    S.sesiId = ''; S.rekap = [];
+    await loadSesi(); loadBin();
+    toast('Sesi dan datanya dihapus');
+  }catch(e){ toast(e.message, true); }
+};
+
+function parseCSV(text, forced){
+  text = text.replace(/^\uFEFF/, '');
+  const first = text.split(/\r?\n/).find(l => l.trim() !== '') || '';
+  let d = forced;
+  if (!d || d === 'auto'){
+    const cand = ['\t', ';', ',', '|'];
+    d = cand.reduce((best, c) => first.split(c).length > first.split(best).length ? c : best, ',');
+  }
+  const rows = []; let row = [], cur = '', q = false;
+  const pushRow = () => { row.push(cur); cur = ''; if (row.some(x => x.trim() !== '')) rows.push(row); row = []; };
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === d){ row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r'){ if (c === '\r' && text[i+1] === '\n') i++; pushRow(); }
+    else cur += c;
+  }
+  if (cur !== '' || row.length) pushRow();
+  return rows;
+}
+
+/* ---------- Upload data system: baca file + pemetaan kolom ---------- */
+const UP = {kind: '', text: '', wb: null, fmt: [], raw: []};
+const MAP_KEY = 'cekrak_colmap';
+const FIELDS = [
+  {k: 'sku',    sel: '#mapSku',    req: true,  syn: ['sku', 'barcode', 'kode barang', 'kode_barang', 'kode', 'item code', 'plu', 'ean', 'upc', 'artikel']},
+  {k: 'nama',   sel: '#mapNama',   req: false, syn: ['nama_barang', 'nama barang', 'nama', 'deskripsi', 'description', 'item name', 'product', 'barang']},
+  {k: 'lokasi', sel: '#mapLokasi', req: false, syn: ['lokasi', 'location', 'rak', 'bin', 'gudang']},
+  {k: 'qty',    sel: '#mapQty',    req: false, syn: ['qty_system', 'qty system', 'qty', 'stok', 'stock', 'jumlah', 'saldo', 'quantity', 'on hand']}
+];
+const colLetter = i => { let s = '', n = i + 1; while (n > 0){ const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const normH = v => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const hasHead = () => $('#mapHead').checked;
+const maxCols = () => UP.fmt.slice(0, 50).reduce((m, r) => Math.max(m, r.length), 0);
+
+function loadSavedMap(){ try{ return JSON.parse(localStorage.getItem(MAP_KEY) || 'null'); }catch(e){ return null; } }
+
+function fillMapSelects(){
+  const n = maxCols(), head = hasHead() ? (UP.fmt[0] || []) : null;
+  const saved = loadSavedMap();
+  FIELDS.forEach((f, fi) => {
+    const sel = $(f.sel);
+    let html = f.req ? '<option value="-1">— pilih kolom —</option>' : '<option value="-1">— kosong —</option>';
+    for (let i = 0; i < n; i++){
+      const t = head && String(head[i] ?? '').trim() !== '' ? `${colLetter(i)} · ${String(head[i]).trim()}` : `Kolom ${colLetter(i)}`;
+      html += `<option value="${i}">${esc(t)}</option>`;
+    }
+    sel.innerHTML = html;
+    let pick = -1;
+    if (head){
+      const hn = head.map(normH);
+      if (saved && saved.byName && saved.byName[f.k]) pick = hn.indexOf(saved.byName[f.k]);
+      if (pick < 0) pick = hn.findIndex(h => f.syn.includes(h));
+      if (pick < 0 && f.k !== 'qty') pick = hn.findIndex(h => h && f.syn.some(s => s.length > 3 && h.includes(s)));
+    }else{
+      if (saved && saved.byIndex && saved.byIndex[f.k] < n) pick = saved.byIndex[f.k];
+      else if (fi < n) pick = fi;
+    }
+    sel.value = String(pick);
+  });
+  renderPreview();
+}
+
+function getMap(){ const m = {}; FIELDS.forEach(f => m[f.k] = Number($(f.sel).value)); return m; }
+
+function parseQty(v){
+  if (typeof v === 'number') return isFinite(v) ? v : NaN;
+  let s = String(v ?? '').trim().replace(/\s/g, '');
+  if (s === '') return 0;
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, '');
+  else s = s.replace(',', '.');
+  const n = Number(s);
+  return isNaN(n) ? NaN : n;
+}
+
+function buildData(){
+  const m = getMap(), off = hasHead() ? 1 : 0;
+  const out = []; let badQty = 0;
+  for (let i = off; i < UP.fmt.length; i++){
+    const r = UP.fmt[i], rw = UP.raw[i] || r;
+    const sku = String(r[m.sku] ?? '').trim();
+    if (!sku) continue;
+    const txt = c => c >= 0 ? String(r[c] ?? '').trim() : '';
+    let qty = 0;
+    if (m.qty >= 0){ qty = parseQty(rw[m.qty]); if (isNaN(qty)){ badQty++; qty = 0; } }
+    out.push([sku, txt(m.nama), txt(m.lokasi), qty]);
+  }
+  return {data: out, badQty};
+}
+
+function renderPreview(){
+  const tbl = $('#pvTable'), m = getMap();
+  if (m.sku < 0){
+    tbl.innerHTML = ''; $('#pvInfo').textContent = 'Pilih kolom SKU / barcode dulu.'; $('#btnUpload').disabled = true; return;
+  }
+  const {data, badQty} = buildData();
+  tbl.innerHTML = '<tr><th>SKU</th><th>Nama barang</th><th>Lokasi</th><th>Qty system</th></tr>' +
+    data.slice(0, 5).map(r => '<tr>' + r.map(v => `<td>${esc(String(v))}</td>`).join('') + '</tr>').join('');
+  $('#pvInfo').textContent = data.length
+    ? `${data.length} baris data akan diupload.` + (badQty ? ` ${badQty} qty bukan angka, dianggap 0.` : '')
+    : 'Tidak ada baris dengan SKU terisi. Periksa pilihan kolom dan baris judul.';
+  $('#btnUpload').disabled = !data.length;
+}
+
+function applyTextParse(){
+  UP.fmt = UP.raw = parseCSV(UP.text, $('#selDelim').value);
+  fillMapSelects();
+}
+function applySheet(){
+  const ws = UP.wb.Sheets[$('#selSheet').value];
+  UP.fmt = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false, defval: ''});
+  UP.raw = XLSX.utils.sheet_to_json(ws, {header: 1, raw: true,  defval: ''});
+  fillMapSelects();
+}
+
+$('#fileMaster').onchange = async () => {
+  const f = $('#fileMaster').files[0];
+  $('#mapBox').hidden = true; $('#btnUpload').disabled = true; $('#upMsg').textContent = '';
+  if (!f) return;
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  try{
+    if (ext === 'xlsx' || ext === 'xls'){
+      if (typeof XLSX === 'undefined') throw new Error('Pustaka Excel belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+      UP.kind = 'xls';
+      UP.wb = XLSX.read(await f.arrayBuffer(), {type: 'array'});
+      $('#selSheet').innerHTML = UP.wb.SheetNames.map(n => `<option>${esc(n)}</option>`).join('');
+      $('#wrapSheet').hidden = UP.wb.SheetNames.length < 2;
+      $('#wrapDelim').hidden = true;
+      $('#mapBox').hidden = false;
+      applySheet();
+    }else if (['csv', 'txt', 'tsv', ''].includes(ext) || f.type.startsWith('text/')){
+      UP.kind = 'txt';
+      UP.text = await f.text();
+      $('#wrapSheet').hidden = true; $('#wrapDelim').hidden = false; $('#selDelim').value = 'auto';
+      $('#mapBox').hidden = false;
+      applyTextParse();
+    }else throw new Error('Format file tidak didukung. Gunakan .xlsx, .xls, .csv, atau .txt');
+    if (!UP.fmt.length){ $('#mapBox').hidden = true; toast('File kosong', true); }
+  }catch(e){ $('#mapBox').hidden = true; toast(e.message, true); }
+};
+$('#selSheet').onchange = applySheet;
+$('#selDelim').onchange = applyTextParse;
+$('#mapHead').onchange = fillMapSelects;
+FIELDS.forEach(f => $(f.sel).onchange = renderPreview);
+
+$('#btnUpload').onclick = async () => {
+  if (!UP.fmt.length) return toast('Pilih file dulu', true);
+  const m = getMap();
+  if (m.sku < 0) return toast('Pilih kolom SKU dulu', true);
+  const {data} = buildData();
+  if (!data.length) return toast('Tidak ada baris data yang valid', true);
+  if (!confirm(`Ganti data system dengan ${data.length} baris dari file ini?`)) return;
+
+  const CHUNK = 1500, bar = $('#upBar'); bar.hidden = false; bar.firstElementChild.style.width = '0%';
+  $('#btnUpload').disabled = true;
+  try{
+    for (let i = 0; i < data.length; i += CHUNK){
+      await api('uploadMaster', {rows: data.slice(i, i + CHUNK), append: i > 0});
+      bar.firstElementChild.style.width = Math.min(100, Math.round((i + CHUNK) / data.length * 100)) + '%';
+      $('#upMsg').textContent = `Terkirim ${Math.min(i + CHUNK, data.length)} dari ${data.length} baris`;
+    }
+    // simpan pemetaan kolom supaya file berikutnya dengan format sama langsung terpilih
+    try{
+      const head = hasHead() ? (UP.fmt[0] || []).map(normH) : null, sv = {byIndex: m};
+      if (head){ sv.byName = {}; FIELDS.forEach(f => { if (m[f.k] >= 0) sv.byName[f.k] = head[m[f.k]]; }); }
+      localStorage.setItem(MAP_KEY, JSON.stringify(sv));
+    }catch(e){}
+    const cur = S.sesi.find(x => x.sesi_id === S.sesiId);
+    if (cur && cur.status === 'aktif'){
+      $('#upMsg').textContent = 'Memperbarui sheet hasil scan…';
+      try{ await api('syncHasil', {sesi_id: S.sesiId, force: true}); }catch(e){}
+      $('#upMsg').textContent = `Selesai: ${data.length} baris diupload.`;
+      refreshProgress(0);
+    }
+    toast('Data system berhasil diupload'); loadNS(true);
+  }catch(e){ toast(e.message, true); $('#upMsg').textContent = 'Upload terhenti: ' + e.message; }
+  finally{ $('#btnUpload').disabled = false; }
+};
+
+/* ============ IMPORT HASIL SCAN (TXT) ============ */
+const IMP = {text: '', rows: []};
+function parseImport(text, item){
+  const rows = new Map(), bad = []; let total = 0, dupe = 0, seen = 0;
+  text.replace(/^\uFEFF/, '').split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim(); if (!line) return;
+    if (seen++ === 0 && /^(shelf|rak|lokasi|sku|barcode)\b/i.test(line)) return;          // baris judul
+    const d = ['\t', ';', '|', ','].find(c => line.includes(c));
+    const c = (d ? line.split(d) : [line]).map(x => x.trim());
+    let shelf = '', sku = '', qty = null, err = '';
+    if (item) sku = c.length === 1 ? c[0] : c[1];                                          // 2 kolom: rak,SKU -> ambil SKU
+    else if (c.length < 2) err = 'tanpa rak';
+    else{
+      shelf = c[0]; sku = c[1];
+      if (c.length >= 3 && c[2] !== ''){ if (/^\d{1,4}$/.test(c[2])) qty = Number(c[2]); else err = 'qty harus angka 0-9999'; }
+      if (!shelf) err = 'rak kosong';
+    }
+    if (!err && !sku) err = 'SKU kosong';
+    if (err){ bad.push(`Baris ${i + 1}: ${err}`); return; }
+    total++;
+    const r = rows.get(sku);
+    if (!r) rows.set(sku, {sku, shelves: shelf ? [shelf] : [], qty});
+    else{
+      dupe++;
+      if (shelf && !r.shelves.includes(shelf)) r.shelves.push(shelf);
+      if (qty !== null) r.qty = (r.qty === null ? 0 : r.qty) + qty;
+    }
+  });
+  const ok = [];
+  rows.forEach(r => { if (r.qty !== null && r.qty > 9999) bad.push(`SKU ${r.sku}: total qty lebih dari 9999`); else ok.push(r); });
+  return {rows: ok, bad, total, dupe};
+}
+function renderImport(){
+  const info = $('#impInfo'), btn = $('#btnImport'), prev = $('#impPrev');
+  btn.disabled = true; prev.innerHTML = ''; IMP.rows = [];
+  if (!IMP.text){ info.textContent = ''; return; }
+  const c = curSesi();
+  if (!c){ info.textContent = 'Pilih sesi dulu.'; return; }
+  const item = curMode() === 'itemize', p = parseImport(IMP.text, item);
+  IMP.rows = p.rows;
+  info.innerHTML = `Sesi: <b>${esc(c.nama_sesi)}</b> (${item ? 'Itemize' : 'Stock take'}). ${p.total} baris terbaca menjadi <b>${p.rows.length}</b> SKU`
+    + (p.dupe ? `, ${p.dupe} baris kembar digabung` : '')
+    + (p.bad.length ? `. <span style="color:var(--short)">${p.bad.length} tidak valid: ${esc(p.bad.slice(0, 3).join('; '))}${p.bad.length > 3 ? '…' : ''}</span>` : '')
+    + (c.status !== 'aktif' ? '. <b>Sesi sudah selesai, tidak bisa import.</b>' : '');
+  prev.innerHTML = p.rows.slice(0, 5).map(r =>
+    `<li><div class="hs">${esc(r.sku)}<span class="hn">${esc(r.shelves.join(', ') || '-')}</span></div><div class="hr">${item ? '' : (r.qty === null ? 'qty system' : '<b>' + r.qty + '</b> pcs')}</div></li>`).join('');
+  btn.disabled = !p.rows.length || c.status !== 'aktif';
+}
+$('#fileImport').onchange = async () => {
+  const f = $('#fileImport').files[0]; $('#impMsg').textContent = '';
+  IMP.text = f ? await f.text() : ''; renderImport();
+};
+$('#btnImport').onclick = async () => {
+  const c = curSesi(), rows = IMP.rows;
+  if (!c || !rows.length) return;
+  if (c.status !== 'aktif') return toast('Sesi sudah selesai, tidak bisa import', true);
+  if (S.queue.length) return toast('Tunggu antrean terkirim dulu', true);
+  if (!confirm(`Import ${rows.length} SKU ke sesi "${c.nama_sesi}"?\n\nSKU yang sudah ada di sesi ini dilewati.`)) return;
+  const id = S.sesiId, item = curMode() === 'itemize', CH = 300, bar = $('#impBar'), msg = $('#impMsg');
+  let masuk = 0, skip = [], made = [], fail = '';
+  $('#btnImport').disabled = true; bar.hidden = false; bar.firstElementChild.style.width = '0%';
+  try{
+    for (let i = 0; i < rows.length; i += CH){
+      const part = rows.slice(i, i + CH).map(r => ({scan_id: uuid(), sku: r.sku, lokasi: r.shelves.join(', '), qty: r.qty}));
+      const res = await api('importScans', {sesi_id: id, rows: part});
+      masuk += res.masuk; skip = skip.concat(res.dilewati); made = made.concat(res.dibuat);
+      bar.firstElementChild.style.width = Math.min(100, Math.round((i + CH) / rows.length * 100)) + '%';
+      msg.textContent = `Terkirim ${Math.min(i + CH, rows.length)} dari ${rows.length} SKU…`;
+    }
+  }catch(e){ fail = e.message; }
+  finally{
+    if (made.length){                                            // tampilkan di Riwayat scan (30 terbaru) & perbarui cache
+      const a = S.hist[id] = S.hist[id] || [];
+      made.forEach(x => a.unshift({scan_id: x.scan_id, sku: x.sku, nama: x.nama, st: x.ada ? '⬆ Import' : '? Di luar system', baru: true,
+                                   qty: item ? '' : x.qty, jam: histStamp(), pend: false}));
+      histSave(id);
+      if (CACHE.sesi === id) made.forEach(x => { if (CACHE.map[x.sku]) CACHE.map[x.sku].scanned = true; });
+      renderNS(); scheduleSync(id); loadNS(true);
+    }
+    $('#btnImport').disabled = false; bar.hidden = true;
+  }
+  const luar = made.filter(x => !x.ada).length;
+  msg.textContent = (fail ? `Berhenti: ${fail}. ` : 'Selesai. ') + `${masuk} SKU masuk` + (luar ? ` (${luar} di luar system)` : '')
+    + `, ${skip.length} dilewati karena sudah ada di sesi` + (skip.length ? ': ' + skip.slice(0, 10).join(', ') + (skip.length > 10 ? '…' : '') : '')
+    + (fail ? '. Ulangi import: SKU yang sudah masuk akan dilewati.' : '.');
+  toast(fail ? 'Import berhenti, lihat keterangan' : `Import selesai: ${masuk} SKU masuk`, !!fail);
+};
+
+/* ============ MULAI ============ */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});   // butuh file sw.js di folder yang sama; tanpa itu aplikasi tetap jalan seperti biasa
+if (S.pin) doLogin(S.pin); else showLogin();
+</script>
+</body>
+</html>
