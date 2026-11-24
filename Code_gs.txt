@@ -7,7 +7,7 @@
 const TZ = Session.getScriptTimeZone();
 const HEADERS = {
   master:   ['sku', 'nama_barang', 'lokasi', 'qty_system'],
-  sesi:     ['sesi_id', 'nama_sesi', 'status', 'dibuat_oleh', 'dibuat_pada', 'mode'],
+  sesi:     ['sesi_id', 'nama_sesi', 'status', 'dibuat_oleh', 'dibuat_pada', 'mode', 'rak'],
   scan_log: ['scan_id', 'sesi_id', 'sku', 'qty', 'lokasi', 'petugas', 'waktu', 'status', 'tipe'],
   users:    ['nama', 'pin', 'role'],
   recycle_bin: ['bin_id', 'dihapus_pada', 'dihapus_oleh', 'scan_id', 'sesi_id', 'sku', 'qty', 'lokasi', 'petugas', 'waktu', 'status', 'tipe']
@@ -97,7 +97,8 @@ function getSesi_(id) {
   for (let i = 0; i < rows.length; i++) {
     if (String(rows[i][0]) === String(id)) {
       return { id: String(rows[i][0]), nama: String(rows[i][1]), status: String(rows[i][2]), row: i + 2,
-               mode: String(rows[i][5] || '').toLowerCase() === 'itemize' ? 'itemize' : 'opname' };
+               mode: String(rows[i][5] || '').toLowerCase() === 'itemize' ? 'itemize' : 'opname',
+               rak: String(rows[i][5] || '').toLowerCase() === 'itemize' && String(rows[i][6] || '').toLowerCase() === 'ya' };
     }
   }
   return null;
@@ -159,7 +160,26 @@ function masterAgg_(sku, vals) {
     if (l && lok.indexOf(l) < 0) lok.push(l);
     qty += Number(r[3]) || 0;
   });
-  return { sku: sku, nama: nama, qty_system: qty, lokasi: lok.join(', ') };
+  return { sku: sku, nama: nama, qty_system: qty, lokasi: lok.join(', '), lok: lok };
+}
+
+/* ---------- Mode Itemize + Rak (bandingkan SKU dan rak) ---------- */
+function isRak_(sesi) { return !!(sesi && sesi.mode === 'itemize' && sesi.rak); }
+function normRak_(v) { return String(v === null || v === undefined ? '' : v).trim().toUpperCase(); }
+// Daftar rak system satu SKU (data cache lama hanya punya string "A, B")
+function racksOf_(m) {
+  if (!m) return [];
+  if (m.lok) return m.lok;
+  return String(m.lokasi || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+}
+// true = rak scan ada di rak system, false = beda, null = rak system kosong (tidak bisa dibandingkan)
+function rakOk_(m, rak) {
+  const list = racksOf_(m).map(normRak_);
+  if (!m || !list.length) return null;
+  return list.indexOf(rak) >= 0;
+}
+function rakInfo_(on, m, rak) {
+  return on ? { rak: true, rak_scan: rak, rak_system: racksOf_(m).join(', '), rak_ok: rakOk_(m, rak) } : {};
 }
 
 // Cari SKU di master (jumlahkan qty jika SKU muncul di beberapa baris/lokasi)
@@ -243,6 +263,9 @@ function ensureSchema_() {
   if (sesi && sesi.getRange(1, 6).getValue() === '') {
     sesi.getRange(1, 6).setValue('mode').setFontWeight('bold').setBackground('#FFD43B');
   }
+  if (sesi && sesi.getRange(1, 7).getValue() === '') {
+    sesi.getRange(1, 7).setValue('rak').setFontWeight('bold').setBackground('#FFD43B');
+  }
 }
 
 /* ---------- Tulis baris ke sheet (dengan format teks agar barcode tidak jadi angka) ---------- */
@@ -286,13 +309,16 @@ function binId_() { return 'RST-' + Utilities.formatDate(new Date(), TZ, 'yyyyMM
 /* ---------- Sheet hasil scan (otomatis, satu sheet per sesi) ---------- */
 const HASIL_HEADERS = {
   opname:  ['sku', 'nama_barang', 'lokasi', 'qty_system', 'qty_fisik', 'selisih', 'status', 'petugas', 'waktu_scan'],
-  itemize: ['sku', 'nama_barang', 'status', 'petugas', 'waktu_scan']
+  itemize: ['sku', 'nama_barang', 'status', 'petugas', 'waktu_scan'],
+  itemize_rak: ['sku', 'nama_barang', 'rak_system', 'rak_scan', 'status', 'petugas', 'waktu_scan']
 };
-const HASIL_STATUS_COL = { opname: 7, itemize: 3 };
+const HASIL_STATUS_COL = { opname: 7, itemize: 3, itemize_rak: 5 };
+function hasilKey_(sesi) { return isRak_(sesi) ? 'itemize_rak' : (sesi.mode === 'itemize' ? 'itemize' : 'opname'); }
 const STATUS_WARNA = {
   'Sesuai': '#D9F2E6', 'Sudah di-scan': '#D9F2E6', 'Kurang': '#F9D6D3', 'Lebih': '#FCE8C3',
   'Belum di-scan': '#E6E9ED', 'Tidak ada di system': '#E4DBF5',
-  'Diluar system': '#FCE8C3', 'SKU tidak ada di system': '#E4DBF5'
+  'Diluar system': '#FCE8C3', 'SKU tidak ada di system': '#E4DBF5',
+  'Rak sesuai': '#D9F2E6', 'Rak berbeda': '#F9D6D3'
 };
 
 // Sesi baru: ID sesi = nama output (mis. STOCK TAKE_JW5006_CGAR_20261114_153045). Sesi lama (OPN-/ITM-) tetap "Hasil <ID>".
@@ -345,10 +371,10 @@ function masterSkus_(pos) {
 }
 // Bentuk ringkas hasil rekap (hemat ukuran respons pada master besar). fmt 'n' = [sku,nama,qty_system,status];
 // fmt 'a' = semua kolom sebagai array; selain itu objek penuh seperti semula. Status dikirim sebagai nomor urut STATUS_LIST.
-const STATUS_LIST = ['Sesuai', 'Kurang', 'Lebih', 'Belum di-scan', 'Sudah di-scan', 'Tidak ada di system', 'Diluar system', 'SKU tidak ada di system'];
+const STATUS_LIST = ['Sesuai', 'Kurang', 'Lebih', 'Belum di-scan', 'Sudah di-scan', 'Tidak ada di system', 'Diluar system', 'SKU tidak ada di system', 'Rak sesuai', 'Rak berbeda'];
 function rekapOut_(rows, fmt) {
   if (fmt === 'n') return rows.map(function (r) { return [r.sku, r.nama, r.qty_system, STATUS_LIST.indexOf(r.status)]; });
-  if (fmt === 'a') return rows.map(function (r) { return [r.sku, r.nama, r.lokasi, r.qty_system, r.qty_fisik, r.selisih, STATUS_LIST.indexOf(r.status), r.petugas, r.waktu]; });
+  if (fmt === 'a') return rows.map(function (r) { return [r.sku, r.nama, r.lokasi, r.qty_system, r.qty_fisik, r.selisih, STATUS_LIST.indexOf(r.status), r.petugas, r.waktu, r.rak_scan || '']; });
   return rows;
 }
 function modeOf_(sesi) { return sesi.mode === 'itemize' ? 'itemize' : 'opname'; }
@@ -367,8 +393,19 @@ function statusOf_(mode, inMaster, scanned, sys, fisik) {
   return d === 0 ? 'Sesuai' : d < 0 ? 'Kurang' : 'Lebih';
 }
 
-function hasilRow_(mode, r) {
-  return mode === 'itemize'
+// Itemize + Rak: SKU harus ada di system DAN rak scan harus salah satu rak system SKU itu
+function statusRak_(inMaster, scanned, sys, sysRacks, scanRacks) {
+  if (!inMaster) return 'SKU tidak ada di system';
+  if (!scanned) return 'Belum di-scan';
+  if (!(sys > 0)) return 'Diluar system';
+  const ok = sysRacks.map(normRak_);
+  if (!ok.length) return 'Sudah di-scan';                         // rak system tidak diisi: tidak bisa dibandingkan
+  return scanRacks.every(function (x) { return ok.indexOf(normRak_(x)) >= 0; }) ? 'Rak sesuai' : 'Rak berbeda';
+}
+
+function hasilRow_(key, r) {
+  if (key === 'itemize_rak') return [r.sku, r.nama, r.lokasi, r.rak_scan, r.status, r.petugas, r.waktu];
+  return key === 'itemize'
     ? [r.sku, r.nama, r.status, r.petugas, r.waktu]
     : [r.sku, r.nama, r.lokasi, r.qty_system, r.qty_fisik, r.selisih, r.status, r.petugas, r.waktu];
 }
@@ -385,10 +422,15 @@ function rekapFull_(sesi) {
     if (l && master[sku].lok.indexOf(l) < 0) master[sku].lok.push(l);
     master[sku].sys += Number(r[3]) || 0;
   });
-  const fisik = {}, last = {};
+  const rakMode = isRak_(sesi), fisik = {}, last = {}, racks = {};
   rows_('scan_log').forEach(function (r) {
     if (String(r[1]) === sesi.id && r[7] === 'valid') {
       const sku = String(r[2]);
+      if (rakMode) {
+        const rk = String(r[4]).trim();
+        racks[sku] = racks[sku] || [];
+        if (rk && rk !== '-' && racks[sku].map(normRak_).indexOf(normRak_(rk)) < 0) racks[sku].push(rk);
+      }
       fisik[sku] = (fisik[sku] || 0) + (Number(r[3]) || 0);
       last[sku] = { lokasi: String(r[4]), petugas: String(r[5]), waktu: String(r[6]) };
     }
@@ -402,7 +444,8 @@ function rekapFull_(sesi) {
       nama: m ? m.nama : '(Tidak ada di system)',
       lokasi: m ? m.lok.join(', ') : (l ? l.lokasi : ''),
       qty_system: sys, qty_fisik: f, selisih: f - sys,
-      status: statusOf_(mode, !!m, scanned, sys, f),
+      status: rakMode ? statusRak_(!!m, scanned, sys, m ? m.lok : [], racks[sku] || []) : statusOf_(mode, !!m, scanned, sys, f),
+      rak_scan: rakMode ? (racks[sku] || []).join(', ') : '',
       petugas: l ? l.petugas : '', waktu: l ? l.waktu : ''
     };
   });
@@ -418,7 +461,7 @@ function writeHasil_(sesi) {
   try { return writeHasilNow_(sesi); } finally { dl.releaseLock(); }
 }
 function writeHasilNow_(sesi) {
-  const mode = modeOf_(sesi), head = HASIL_HEADERS[mode], nc = head.length, sc = HASIL_STATUS_COL[mode];
+  const key = hasilKey_(sesi), head = HASIL_HEADERS[key], nc = head.length, sc = HASIL_STATUS_COL[key];
   const ss = SpreadsheetApp.getActiveSpreadsheet(), name = hasilName_(sesi.id);
   const rows = rekapFull_(sesi);
   let sh = ss.getSheetByName(name);
@@ -431,7 +474,7 @@ function writeHasilNow_(sesi) {
   sh.getRange(1, 1, 1, nc).setValues([head]).setFontWeight('bold').setBackground('#FFD43B');
   sh.setFrozenRows(1);
   if (n) {
-    sh.getRange(2, 1, n, nc).setValues(rows.map(function (r) { return hasilRow_(mode, r); }));
+    sh.getRange(2, 1, n, nc).setValues(rows.map(function (r) { return hasilRow_(key, r); }));
     sh.getRange(2, sc, n, 1).setBackgrounds(rows.map(function (r) { return [STATUS_WARNA[r.status] || '#FFFFFF']; }));
   }
   return { sheet: name, baris: n };
@@ -443,7 +486,8 @@ const ACTIONS = {
 
   listSesi: function () {
     return rows_('sesi').map(function (r) {
-      return { sesi_id: String(r[0]), nama_sesi: String(r[1]), status: String(r[2]), mode: String(r[5] || '').toLowerCase() === 'itemize' ? 'itemize' : 'opname' };
+      const it = String(r[5] || '').toLowerCase() === 'itemize';
+      return { sesi_id: String(r[0]), nama_sesi: String(r[1]), status: String(r[2]), mode: it ? 'itemize' : 'opname', rak: it && String(r[6] || '').toLowerCase() === 'ya' };
     }).reverse();
   },
 
@@ -451,14 +495,16 @@ const ACTIONS = {
     requireAdmin_(user);
     const nama = String(req.nama || '').trim();
     if (!nama) throw new Error('Nama sesi wajib diisi');
-    const mode = String(req.mode || '').toLowerCase() === 'itemize' ? 'itemize' : 'opname';
+    const modeRaw = String(req.mode || '').toLowerCase();
+    const rak = modeRaw === 'itemize_rak';                                   // Itemize + cek rak
+    const mode = (modeRaw === 'itemize' || rak) ? 'itemize' : 'opname';
     ensureSchema_();
     const toko = getToko_();
     if (!toko.kode || !toko.nama) throw new Error('Isi kode toko dan nama toko dulu di menu Admin');
-    const id = (mode === 'itemize' ? 'ITEMIZE' : 'STOCK TAKE') + '_' + toko.kode + '_' + toko.nama + '_' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd_HHmmss');
-    sh_('sesi').appendRow([id, nama, 'aktif', user.nama, now_(), mode]);
-    try { writeHasil_({ id: id, nama: nama, status: 'aktif', mode: mode }); } catch (err) { console.error('writeHasil_: ' + err); }
-    return { sesi_id: id, sheet: hasilName_(id), mode: mode };
+    const id = (mode === 'itemize' ? (rak ? 'ITEMIZE RAK' : 'ITEMIZE') : 'STOCK TAKE') + '_' + toko.kode + '_' + toko.nama + '_' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd_HHmmss');
+    sh_('sesi').appendRow([id, nama, 'aktif', user.nama, now_(), mode, rak ? 'ya' : '']);
+    try { writeHasil_({ id: id, nama: nama, status: 'aktif', mode: mode, rak: rak }); } catch (err) { console.error('writeHasil_: ' + err); }
+    return { sesi_id: id, sheet: hasilName_(id), mode: mode, rak: rak };
   },
 
   closeSesi: function (req, user) {
@@ -576,13 +622,88 @@ const ACTIONS = {
     } finally { lock.releaseLock(); }
   },
 
+  // ---- Kelola user (menu Admin): tidak perlu lagi edit sheet "users" manual ----
+  listUsers: function (req, user) {
+    requireAdmin_(user);
+    return rows_('users').filter(function (r) { return String(r[1]).trim(); }).map(function (r) {
+      return { nama: String(r[0]), pin: String(r[1]).trim(), role: String(r[2]).toLowerCase() === 'admin' ? 'admin' : 'petugas' };
+    });
+  },
+
+  addUser: function (req, user) {
+    requireAdmin_(user);
+    const nama = cleanPart_(req.nama, 40), pin = String(req.pin || '').trim();
+    const role = String(req.role || '').toLowerCase() === 'admin' ? 'admin' : 'petugas';
+    if (!nama) throw new Error('Nama user wajib diisi');
+    if (!/^[A-Za-z0-9]{4,12}$/.test(pin)) throw new Error('PIN harus 4-12 karakter huruf/angka tanpa spasi');
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const rows = rows_('users');
+      rows.forEach(function (r) {
+        if (String(r[0]).trim().toLowerCase() === nama.toLowerCase()) throw new Error('Nama "' + nama + '" sudah dipakai');
+        if (String(r[1]).trim() === pin) throw new Error('PIN sudah dipakai user lain, pilih PIN berbeda');
+      });
+      appendRows_(sh_('users'), 3, [[nama, pin, role]], TEXT_COLS.users);
+      CacheService.getScriptCache().remove('users_v1');
+      return { nama: nama, role: role };
+    } finally { lock.releaseLock(); }
+  },
+
+  // Ganti PIN dan/atau role satu user (kunci: nama)
+  updateUser: function (req, user) {
+    requireAdmin_(user);
+    const nama = String(req.nama || '').trim().toLowerCase();
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const rows = rows_('users'), i = rows.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === nama; });
+      if (i < 0) throw new Error('User tidak ditemukan');
+      const sh = sh_('users'), cur = rows[i];
+      let pin = String(cur[1]).trim(), role = String(cur[2]).toLowerCase() === 'admin' ? 'admin' : 'petugas';
+      if (req.pin !== undefined && req.pin !== null && String(req.pin).trim() !== '') {
+        pin = String(req.pin).trim();
+        if (!/^[A-Za-z0-9]{4,12}$/.test(pin)) throw new Error('PIN harus 4-12 karakter huruf/angka tanpa spasi');
+        if (rows.some(function (r, k) { return k !== i && String(r[1]).trim() === pin; })) throw new Error('PIN sudah dipakai user lain');
+      }
+      if (req.role) {
+        role = String(req.role).toLowerCase() === 'admin' ? 'admin' : 'petugas';
+        if (role !== 'admin' && String(cur[2]).toLowerCase() === 'admin' &&
+            rows.filter(function (r) { return String(r[2]).toLowerCase() === 'admin' && String(r[1]).trim(); }).length < 2)
+          throw new Error('Tidak bisa menurunkan admin terakhir');
+      }
+      sh.getRange(i + 2, 2, 1, 2).setNumberFormat('@').setValues([[pin, role]]);
+      CacheService.getScriptCache().remove('users_v1');
+      return { nama: String(cur[0]), role: role };
+    } finally { lock.releaseLock(); }
+  },
+
+  deleteUser: function (req, user) {
+    requireAdmin_(user);
+    const nama = String(req.nama || '').trim().toLowerCase();
+    if (nama === String(user.nama).trim().toLowerCase()) throw new Error('Tidak bisa menghapus akun yang sedang dipakai');
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const rows = rows_('users'), i = rows.findIndex(function (r) { return String(r[0]).trim().toLowerCase() === nama; });
+      if (i < 0) throw new Error('User tidak ditemukan');
+      if (String(rows[i][2]).toLowerCase() === 'admin' &&
+          rows.filter(function (r) { return String(r[2]).toLowerCase() === 'admin' && String(r[1]).trim(); }).length < 2)
+        throw new Error('Tidak bisa menghapus admin terakhir');
+      sh_('users').deleteRow(i + 2);
+      CacheService.getScriptCache().remove('users_v1');
+      return { nama: String(rows[i][0]) };
+    } finally { lock.releaseLock(); }
+  },
+
   scan: function (req, user) {
     const sku = String(req.sku || '').trim();
     if (!sku) throw new Error('SKU kosong');
     const sesi = getSesiFast_(req.sesi_id);
     if (!sesi) throw new Error('Sesi tidak ditemukan');
     if (sesi.status !== 'aktif') throw new Error('Sesi sudah selesai, scan tidak bisa ditambah');
-    const item = sesi.mode === 'itemize';
+    const item = sesi.mode === 'itemize', rakMode = isRak_(sesi), rak = rakMode ? normRak_(req.lokasi) : '';
+    if (rakMode && (!rak || rak === '-')) throw new Error('Rak / lokasi wajib diisi di mode Itemize + Rak');
     const m = findMaster_(sku);                     // baca master di luar kunci supaya kunci cepat dilepas
 
     const lock = LockService.getScriptLock();
@@ -593,16 +714,16 @@ const ACTIONS = {
       let baru = isDuplicate_(log, id), total;      // kiriman ulang dari antrean offline
       if (baru) total = sumFisik_(sesi.id, sku);
       else {
-        const valid = skuLog_(log, sesi.id, sku).filter(function (x) { return x.v[7] === 'valid'; });
+        const valid = skuLog_(log, sesi.id, sku).filter(function (x) { return x.v[7] === 'valid' && (!rakMode || normRak_(x.v[4]) === rak); });   // mode rak: SKU sama di rak lain dicatat terpisah
         if (valid.length) total = valid.reduce(function (t, x) { return t + (Number(x.v[3]) || 0); }, 0);
         else {                                       // SKU baru di sesi ini: simpan otomatis
           const qty = item ? 1 : (m ? m.qty_system : 1);
-          log.appendRow([id, sesi.id, sku, qty, item ? '-' : String(req.lokasi || '-'), user.nama, now_(), 'valid', 'scan']);
+          log.appendRow([id, sesi.id, sku, qty, rakMode ? rak : (item ? '-' : String(req.lokasi || '-')), user.nama, now_(), 'valid', 'scan']);
           baru = true; total = qty;
         }
       }
       if (baru) markDirty_(sesi.id);                 // sheet hasil diperbarui terpisah (syncHasil), tidak menahan scan
-      return {
+      return Object.assign({
         sku: sku,
         nama: m ? m.nama : '(Tidak ada di system)',
         ada_di_master: !!m,
@@ -610,7 +731,7 @@ const ACTIONS = {
         total_fisik: total,
         baru: baru,
         mode: sesi.mode
-      };
+      }, rakInfo_(rakMode, m, rak));
     } finally { lock.releaseLock(); }
   },
 
@@ -622,7 +743,7 @@ const ACTIONS = {
     const sesi = getSesiFast_(req.sesi_id);
     if (!sesi) throw new Error('Sesi tidak ditemukan');
     if (sesi.status !== 'aktif') throw new Error('Sesi sudah selesai, scan tidak bisa ditambah');
-    const item = sesi.mode === 'itemize';
+    const item = sesi.mode === 'itemize', rakMode = isRak_(sesi);
     const skus = items.map(function (it) { return String(it.sku || '').trim(); }).filter(function (s) { return s; });
     const mm = findMasterMany_(skus);                // dari cache; di luar kunci
 
@@ -633,27 +754,30 @@ const ACTIONS = {
       if (n > 0) log.getRange(2, 1, n, 8).getValues().forEach(function (r) {
         if (String(r[1]) !== sesi.id) return;
         ids[String(r[0])] = 1;
-        if (r[7] === 'valid') { const k = String(r[2]); have[k] = 1; tot[k] = (tot[k] || 0) + (Number(r[3]) || 0); }
+        if (r[7] === 'valid') { const k = String(r[2]); have[rakMode ? k + '\t' + normRak_(r[4]) : k] = 1; tot[k] = (tot[k] || 0) + (Number(r[3]) || 0); }
       });
       const fresh = [], w = now_();
       let dirty = false;
       items.forEach(function (it) {
         const sku = String(it.sku || '').trim(), sid = String(it.scan_id || '');
         if (!sku) { results.push({ scan_id: sid, error: 'SKU kosong' }); return; }
+        const rak = rakMode ? normRak_(it.lokasi) : '';
+        if (rakMode && (!rak || rak === '-')) { results.push({ scan_id: sid, error: 'SKU kosong: rak / lokasi wajib diisi di mode Itemize + Rak' }); return; }
+        const hk = rakMode ? sku + '\t' + rak : sku;                       // mode rak: SKU sama di rak lain dicatat terpisah
         const m = mm[sku], id = sid || Utilities.getUuid();
         let baru, total;
         if (ids[id]) { baru = true; total = tot[sku] || 0; }             // kiriman ulang dari antrean offline
-        else if (have[sku]) { baru = false; total = tot[sku] || 0; }      // sudah pernah discan di sesi ini
+        else if (have[hk]) { baru = false; total = tot[sku] || 0; }       // sudah pernah discan di sesi ini
         else {
           const qty = item ? 1 : (m ? m.qty_system : 1);
-          fresh.push([id, sesi.id, sku, qty, item ? '-' : String(it.lokasi || '-'), user.nama, w, 'valid', 'scan']);
-          ids[id] = 1; have[sku] = 1; tot[sku] = qty; baru = true; total = qty;
+          fresh.push([id, sesi.id, sku, qty, rakMode ? rak : (item ? '-' : String(it.lokasi || '-')), user.nama, w, 'valid', 'scan']);
+          ids[id] = 1; have[hk] = 1; tot[sku] = (tot[sku] || 0) + qty; baru = true; total = tot[sku];
         }
         if (baru) dirty = true;
-        results.push({ scan_id: sid, data: {
+        results.push({ scan_id: sid, data: Object.assign({
           sku: sku, nama: m ? m.nama : '(Tidak ada di system)', ada_di_master: !!m,
           qty_system: m ? m.qty_system : 0, total_fisik: total, baru: baru, mode: sesi.mode
-        } });
+        }, rakInfo_(rakMode, m, rak)) });
       });
       appendRows_(log, 9, fresh, TEXT_COLS.scan_log);
       if (dirty) markDirty_(sesi.id);
@@ -769,6 +893,7 @@ const ACTIONS = {
     return {
       sesi: { sesi_id: sesi.id, nama_sesi: sesi.nama, status: sesi.status },
       mode: sesi.mode,
+      rak: isRak_(sesi),
       sheet: hasilName_(sesi.id),
       rows: rekapOut_(rekapFull_(sesi), req.fmt),
       fmt: req.fmt === 'n' || req.fmt === 'a' ? req.fmt : undefined
@@ -813,7 +938,7 @@ const ACTIONS = {
     const sesi = getSesi_(req.sesi_id);
     if (!sesi) throw new Error('Sesi tidak ditemukan');
     if (sesi.status !== 'aktif') throw new Error('Sesi sudah selesai, tidak bisa import');
-    const item = sesi.mode === 'itemize';
+    const item = sesi.mode === 'itemize', rakMode = isRak_(sesi);
     const rows = (req.rows || []).slice(0, 500);
     if (!rows.length) return { masuk: 0, dilewati: [], dibuat: [] };
     const master = {};
@@ -831,22 +956,25 @@ const ACTIONS = {
       if (n > 0) log.getRange(2, 1, n, 8).getValues().forEach(function (r) {
         if (String(r[1]) !== sesi.id) return;
         ids[String(r[0])] = 1;
-        if (r[7] === 'valid') have[String(r[2])] = 1;
+        if (r[7] === 'valid') have[rakMode ? String(r[2]) + '\t' + normRak_(r[4]) : String(r[2])] = 1;
       });
       const out = [], skip = [], dibuat = [], w = now_();
       rows.forEach(function (r) {
         const sku = String(r.sku || '').trim();
         if (!sku) return;
         const id = String(r.scan_id || Utilities.getUuid());
+        const lok = rakMode ? normRak_(r.lokasi) : '';
+        if (rakMode && (!lok || lok === '-')) { skip.push(sku); return; }       // mode rak: baris tanpa rak dilewati
+        const hk = rakMode ? sku + '\t' + lok : sku;
         const m = master[sku];
         const q = (r.qty === null || r.qty === undefined || r.qty === '') ? null : Math.round(Number(r.qty));
         const qty = item ? 1 : (q === null ? (m ? m.sys : 1) : q);
         if (isNaN(qty) || qty < 0 || qty > 9999) { skip.push(sku); return; }
-        const info = { scan_id: id, sku: sku, nama: m ? m.nama : '(Tidak ada di system)', ada: !!m, qty: qty };
+        const info = { scan_id: id, sku: sku, nama: m ? m.nama : '(Tidak ada di system)', ada: !!m, qty: qty, rak: lok };
         if (ids[id]) { dibuat.push(info); return; }          // kiriman ulang dari klien: sudah tercatat
-        if (have[sku]) { skip.push(sku); return; }
-        out.push([id, sesi.id, sku, qty, item ? '-' : (String(r.lokasi || '').trim() || '-'), user.nama, w, 'valid', 'import']);
-        have[sku] = 1; dibuat.push(info);
+        if (have[hk]) { skip.push(sku); return; }
+        out.push([id, sesi.id, sku, qty, rakMode ? lok : (item ? '-' : (String(r.lokasi || '').trim() || '-')), user.nama, w, 'valid', 'import']);
+        have[hk] = 1; dibuat.push(info);
       });
       appendRows_(log, 9, out, TEXT_COLS.scan_log);
       if (out.length) markDirty_(sesi.id);

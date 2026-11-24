@@ -1,6 +1,6 @@
 /* Service worker ITEMIZED: agar halaman & pustaka kamera tetap terbuka saat sinyal hilang.
    Taruh di folder yang sama dengan index.html. Data scan tidak lewat sini (sudah diantrekan di perangkat). */
-const V = 'itemized-v7';
+const V = 'itemized-v8';
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'

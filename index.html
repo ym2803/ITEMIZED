@@ -295,6 +295,19 @@
         <div style="height:12px"></div>
         <button id="btnTokoSimpan" class="btn primary block">Simpan data toko</button>
       </div>
+      <div class="card" id="cardUsers">
+        <h2>Kelola user</h2>
+        <p class="muted">Tambah petugas/admin baru tanpa membuka Google Sheet. PIN 4-12 huruf/angka, harus unik. User baru langsung bisa login.</p>
+        <div class="row" style="flex-wrap:wrap">
+          <div style="flex:1 1 140px"><label for="usNama">Nama</label><input id="usNama" type="text" placeholder="mis. Budi" autocomplete="off"></div>
+          <div style="flex:1 1 110px"><label for="usPin">PIN</label><input id="usPin" type="text" placeholder="mis. 4821" autocomplete="off" inputmode="text"></div>
+          <div style="flex:1 1 110px"><label for="usRole">Peran</label><select id="usRole"><option value="petugas">Petugas</option><option value="admin">Admin</option></select></div>
+        </div>
+        <div style="height:12px"></div>
+        <button id="btnUsAdd" class="btn primary block">Tambah user</button>
+        <ul id="usList" class="hist" style="margin-top:12px"></ul>
+        <p id="usMsg" class="muted"></p>
+      </div>
       <div class="card">
         <h2>Buat sesi baru</h2>
         <label for="inSesiNama">Nama sesi</label>
@@ -303,7 +316,8 @@
         <label for="selSesiMode">Mode scan</label>
         <select id="selSesiMode">
           <option value="opname">Opname: per rak, bandingkan qty dengan system</option>
-          <option value="itemize">Itemize: hanya cek SKU sudah / belum discan</option>
+          <option value="itemize">Itemize SKU: hanya cek SKU sudah / belum discan</option>
+          <option value="itemize_rak">Itemize SKU + Rak: cek SKU dan rak / lokasinya sesuai system</option>
         </select>
         <div style="height:12px"></div>
         <button id="btnSesiBuat" class="btn primary block">Buat sesi</button>
@@ -537,7 +551,7 @@ async function loadSesi(){
   catch(e){ S.sesi = store.get('sesiCache', []); if (!(e instanceof NetError)) toast(e.message, true); }
   const sel = $('#selSesi');
   sel.innerHTML = S.sesi.length
-    ? S.sesi.map(s => `<option value="${esc(s.sesi_id)}">${esc(s.nama_sesi)}${s.mode === 'itemize' ? ' · Itemize' : ''}${s.status !== 'aktif' ? ' (selesai)' : ''}</option>`).join('')
+    ? S.sesi.map(s => `<option value="${esc(s.sesi_id)}">${esc(s.nama_sesi)}${s.mode === 'itemize' ? (s.rak ? ' · Itemize + Rak' : ' · Itemize') : ''}${s.status !== 'aktif' ? ' (selesai)' : ''}</option>`).join('')
     : '<option value="">Belum ada sesi</option>';
   if (S.sesi.some(s => s.sesi_id === S.sesiId)) sel.value = S.sesiId;
   else { const a = S.sesi.find(s => s.status === 'aktif') || S.sesi[0]; S.sesiId = a ? a.sesi_id : ''; sel.value = S.sesiId; }
@@ -546,14 +560,18 @@ async function loadSesi(){
 }
 const curSesi = () => S.sesi.find(x => x.sesi_id === S.sesiId) || null;
 const curMode = () => { const c = curSesi(); return c && c.mode === 'itemize' ? 'itemize' : 'opname'; };
+const curRak = () => { const c = curSesi(); return !!(c && c.mode === 'itemize' && c.rak); };
 function applyMode(resetTag){
   const item = curMode() === 'itemize';
-  $('#wrapLokasi').hidden = item;
+  const rakM = curRak();
+  $('#wrapLokasi').hidden = item && !rakM;
   $('#nav-edit').hidden = item;
   if (item && !$('#tab-edit').hidden) showTab('scan');
   if (resetTag){
     const b = $('#tagBox'); b.className = 'tag empty';
-    b.textContent = item
+    b.textContent = rakM
+      ? 'Belum ada scan. Isi rak / lokasi, lalu scan SKU. SKU dicek ada di system dan raknya sesuai. SKU yang sama di rak yang sama tidak dihitung dua kali.'
+      : item
       ? 'Belum ada scan. Scan SKU untuk menandai barang sudah discan. SKU yang sama tidak dihitung dua kali.'
       : 'Belum ada scan. Setiap SKU yang discan otomatis tersimpan sesuai qty system. Jika jumlah fisik berbeda, tekan Ubah qty.';
     refreshProgress(0);
@@ -575,7 +593,7 @@ function showTab(name){
   if (name !== 'scan'){ stopCam(); wakeOff(); }
   if (name === 'rekap') loadRekap();
   if (name === 'edit') loadEdit();
-  if (name === 'admin'){ loadToko(); loadBin(); loadSheetLinks(); }
+  if (name === 'admin'){ loadToko(); loadBin(); loadSheetLinks(); loadUsers(); }
   if (name === 'scan'){ $('#inSku').focus(); wakeOn(); }
 }
 ['scan', 'rekap', 'edit', 'admin'].forEach(t => $('#nav-' + t).onclick = () => showTab(t));
@@ -587,14 +605,15 @@ function submitCode(raw){
   if (!sku) return;
   if (!S.sesiId){ toast('Pilih sesi opname dulu', true); beep(false); return; }
   const item = curMode() === 'itemize';
-  if (!item && !S.lokasi){ toast('Isi rak / lokasi dulu', true); beep(false); $('#inLokasi').focus(); return; }
+  const rakM = curRak();
+  if ((!item || rakM) && !S.lokasi){ toast('Isi rak / lokasi dulu', true); beep(false); $('#inLokasi').focus(); return; }
   const now = Date.now();
   if (sku === S.lastCode && now - S.lastAt < (S.cont ? 800 : CONFIG.SAME_CODE_COOLDOWN_MS)) return;
   S.lastCode = sku; S.lastAt = now;
   if (navigator.vibrate) navigator.vibrate(25);      // umpan balik instan, hasil menyusul dari server
 
-  const id = uuid(), pred = predict(sku, item);
-  S.queue.push({scan_id: id, sesi_id: S.sesiId, sku, lokasi: item ? '-' : S.lokasi, opt: pred ? pred.kind : undefined});
+  const id = uuid(), pred = rakM ? null : predict(sku, item);   // mode rak: server yang menentukan
+  S.queue.push({scan_id: id, sesi_id: S.sesiId, sku, lokasi: item && !rakM ? '-' : S.lokasi, opt: pred ? pred.kind : undefined});
   store.set('queue', S.queue);
   S.lastScanId = id;
   histPut(S.sesiId, {scan_id: id, sku, nama: pred && pred.r ? pred.r.nama : '', st: pred ? pred.st : '', baru: pred ? pred.baru : true,
@@ -708,7 +727,7 @@ function histDrop(sesiId, scanId){
   if (i >= 0) a.splice(i, 1); histSave(sesiId);
 }
 var NS = {rows: [], sesi: ''}, CACHE = {sesi: '', map: {}};
-const STATUS_LIST = ['Sesuai', 'Kurang', 'Lebih', 'Belum di-scan', 'Sudah di-scan', 'Tidak ada di system', 'Diluar system', 'SKU tidak ada di system'];   // urutan sama dengan Code.gs
+const STATUS_LIST = ['Sesuai', 'Kurang', 'Lebih', 'Belum di-scan', 'Sudah di-scan', 'Tidak ada di system', 'Diluar system', 'SKU tidak ada di system', 'Rak sesuai', 'Rak berbeda'];   // urutan sama dengan Code.gs
 function decodeRekap(r){                       // server baru mengirim array ringkas (fmt n/a); server lama mengirim objek
   const rows = decodeRekapRaw(r);
   // Itemize: "belum discan" hanya untuk SKU qty system > 0 (server baru sudah menyaring; ini pengaman untuk server lama)
@@ -717,7 +736,7 @@ function decodeRekap(r){                       // server baru mengirim array rin
 function decodeRekapRaw(r){
   if (!r.fmt) return r.rows;
   if (r.fmt === 'n') return r.rows.map(a => ({sku: a[0], nama: a[1], lokasi: '', qty_system: a[2], qty_fisik: 0, selisih: 0, status: STATUS_LIST[a[3]] || 'Belum di-scan', petugas: '', waktu: ''}));
-  return r.rows.map(a => ({sku: a[0], nama: a[1], lokasi: a[2], qty_system: a[3], qty_fisik: a[4], selisih: a[5], status: STATUS_LIST[a[6]] || 'Belum di-scan', petugas: a[7], waktu: a[8]}));
+  return r.rows.map(a => ({sku: a[0], nama: a[1], lokasi: a[2], qty_system: a[3], qty_fisik: a[4], selisih: a[5], status: STATUS_LIST[a[6]] || 'Belum di-scan', petugas: a[7], waktu: a[8], rak_scan: a[9] || ''}));
 }
 function restoreCache(){                       // pakai salinan terakhir di perangkat sampai data segar dari server tiba
   const id = S.sesiId; if (!id) return;
@@ -788,8 +807,11 @@ function renderItem(r, note, undone){
   const chip = undone ? '<span class="chip none">○ Dibatalkan, belum discan</span>'
     : r.ada_di_master === false ? '<span class="chip unk">? SKU tidak ada di system</span>'
     : !(r.qty_system > 0) ? '<span class="chip over">? Diluar system</span>'
+    : (r.rak && r.baru && r.rak_ok === false) ? '<span class="chip short">✗ Rak berbeda</span>'
+    : (r.rak && r.baru && r.rak_ok === true) ? '<span class="chip ok">✓ SKU dan rak sesuai</span>'
     : r.baru ? '<span class="chip ok">✓ Sudah discan</span>' : '<span class="chip over">⚠ Sudah pernah discan</span>';
   b.innerHTML = `<div class="sk">${esc(r.sku)}</div><div class="nm">${esc(r.nama)}</div>
+    ${r.rak ? `<div class="meta"><span>Rak scan: <b>${esc(r.rak_scan || '-')}</b> · Rak system: <b>${esc(r.rak_system || '-')}</b></span></div>` : ''}
     <div class="meta">${chip}${note ? `<span>${esc(note)}</span>` : ''}</div>`;
 }
 function renderResult(r, note, undone){
@@ -852,9 +874,10 @@ function scheduleSync(sesiId){                   // perbarui sheet hasil setelah
     try{ const r = await api('syncHasil', {sesi_id: sesiId}); if (r && r.tertunda) syncTimer = setTimeout(() => scheduleSync(sesiId), Math.max(10, r.tunggu || 90) * 1000); }catch(e){}
   }, 6000);
 }
-const kindOf = v => v.baru === false ? 'dup' : (v.mode === 'itemize' ? !!(v.ada_di_master && v.baru && v.qty_system > 0) : !!v.ada_di_master);
+const kindOf = v => v.baru === false ? 'dup' : (v.rak ? !!(v.ada_di_master && v.qty_system > 0 && v.rak_ok !== false) : v.mode === 'itemize' ? !!(v.ada_di_master && v.baru && v.qty_system > 0) : !!v.ada_di_master);
 const stText = r => r.ada_di_master === false ? (r.mode === 'itemize' ? '? SKU tidak ada di system' : '? Di luar system')
   : r.baru === false ? '⚠ Sudah pernah'
+  : (r.rak && r.rak_ok === false) ? '✗ Rak berbeda'
   : (r.mode === 'itemize' && !(r.qty_system > 0)) ? '? Diluar system' : '✓ Tercatat';
 // Tebakan hasil dari data rekap yang sudah dimuat. Server tetap menjadi penentu dan mengoreksi bila beda.
 function predict(sku, item){
@@ -1031,16 +1054,20 @@ const ST_ITM = {
   'SKU tidak ada di system': {label: 'SKU tidak ada di system', cls: 'unk', icon: '?'},
   'Tidak ada di system': {label: 'SKU tidak ada di system', cls: 'unk', icon: '?'}   // server lama
 };
+const ST_RAK = Object.assign({}, ST_ITM, {
+  'Rak sesuai': {label: 'Rak sesuai', cls: 'ok', icon: '✓'},
+  'Rak berbeda': {label: 'Rak berbeda', cls: 'short', icon: '✗'}
+});
 async function loadRekap(){
   if (!S.sesiId){ S.rekap = []; renderRekap(); return; }
   $('#rekapNote').textContent = 'Memuat…';
   try{
     const r = await api('rekap', {sesi_id: S.sesiId, fmt: 'a'});
-    S.rekap = decodeRekap(r); S.rekapSheet = r.sheet; S.rekapMode = r.mode; renderRekap();
+    S.rekap = decodeRekap(r); S.rekapSheet = r.sheet; S.rekapMode = r.mode; S.rekapRak = !!r.rak; renderRekap();
   }catch(e){ $('#rekapNote').textContent = ''; toast(e.message, true); }
 }
 function renderRekap(){
-  const item = S.rekapMode === 'itemize', ST = item ? ST_ITM : ST_OPN;
+  const item = S.rekapMode === 'itemize', rk = item && S.rekapRak, ST = rk ? ST_RAK : item ? ST_ITM : ST_OPN;
   if (!ST[S.filter]) S.filter = 'all';
   $('#rekapSheet').textContent = S.rekapSheet ? `Hasil scan tersimpan otomatis di sheet "${S.rekapSheet}" pada Google Sheet.` : '';
   $('#rekapHead').innerHTML = item
@@ -1055,13 +1082,13 @@ function renderRekap(){
   const q = $('#inFind').value.trim().toLowerCase();
   let rows = S.rekap.filter(r => (S.filter === 'all' || r.status === S.filter) &&
     (!q || r.sku.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q)));
-  const rank = {'Belum di-scan': 0, 'SKU tidak ada di system': 1, 'Tidak ada di system': 1, 'Diluar system': 2, 'Sudah di-scan': 3};
+  const rank = {'Belum di-scan': 0, 'SKU tidak ada di system': 1, 'Tidak ada di system': 1, 'Diluar system': 2, 'Rak berbeda': 2.5, 'Sudah di-scan': 3, 'Rak sesuai': 3};
   if (item) rows.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
   else rows.sort((a, b) => Math.abs(b.selisih) - Math.abs(a.selisih));
   const MAX = 300, shown = rows.slice(0, MAX), cols = item ? 2 : 5;
   $('#rekapBody').innerHTML = shown.length ? shown.map(r => {
     const st = ST[r.status] || {label: String(r.status || 'Tidak dikenal'), cls: 'unk', icon: '?'}, chip = `<span class="chip ${st.cls}">${st.icon} ${esc(st.label)}</span>`;
-    const nm = `<td><span class="rsku">${esc(r.sku)}</span><small>${esc(r.nama)}${!item && r.lokasi ? ' · ' + esc(r.lokasi) : ''}</small></td>`;
+    const nm = `<td><span class="rsku">${esc(r.sku)}</span><small>${esc(r.nama)}${(!item || rk) && r.lokasi ? ' · Rak system: ' + esc(r.lokasi) : ''}${rk && r.rak_scan ? ' · Rak scan: ' + esc(r.rak_scan) : ''}</small></td>`;
     if (item) return `<tr>${nm}<td>${chip}${r.petugas ? `<small>${esc(r.petugas)} · ${esc(r.waktu)}</small>` : ''}</td></tr>`;
     return `<tr>${nm}<td class="n">${r.qty_system}</td><td class="n">${r.qty_fisik}</td>
       <td class="n"><b>${r.selisih > 0 ? '+' : ''}${r.selisih}</b></td><td>${chip}</td></tr>`;
@@ -1072,6 +1099,15 @@ $('#btnReload').onclick = loadRekap;
 $('#inFind').oninput = renderRekap;
 
 function exportDef(){
+  if (S.rekapMode === 'itemize' && S.rekapRak) return {
+    head: ['SKU', 'Nama barang', 'Rak system', 'Rak scan', 'Status', 'Petugas', 'Waktu scan'],
+    line: r => [String(r.sku), r.nama, r.lokasi || '', r.rak_scan || '', r.status, r.petugas || '', r.waktu || ''],
+    wch: [18, 36, 20, 20, 22, 14, 19],
+    sheets: [['Hasil Itemize Rak', () => true], ['Belum Discan', r => r.status === 'Belum di-scan'],
+             ['Rak Sesuai', r => r.status === 'Rak sesuai' || r.status === 'Sudah di-scan'], ['Rak Berbeda', r => r.status === 'Rak berbeda'],
+             ['Diluar System', r => r.status === 'Diluar system'],
+             ['SKU Tidak Ada di System', r => r.status === 'SKU tidak ada di system' || r.status === 'Tidak ada di system']]
+  };
   if (S.rekapMode === 'itemize') return {
     head: ['SKU', 'Nama barang', 'Status', 'Petugas', 'Waktu scan'],
     line: r => [String(r.sku), r.nama, r.status, r.petugas || '', r.waktu || ''],
@@ -1433,6 +1469,45 @@ $('#btnUpload').onclick = async () => {
   finally{ $('#btnUpload').disabled = false; }
 };
 
+/* ============ KELOLA USER ============ */
+let USERS = [];
+async function loadUsers(){
+  if (!S.user || S.user.role !== 'admin') return;
+  try{ USERS = await api('listUsers'); renderUsers(); }
+  catch(e){ $('#usMsg').textContent = /Aksi tidak dikenal/.test(e.message) ? 'Perbarui Code.gs di Apps Script dan deploy versi baru untuk memakai fitur ini.' : e.message; }
+}
+function renderUsers(){
+  $('#usList').innerHTML = USERS.map((u, i) =>
+    `<li><div class="hs">${esc(u.nama)}<span class="hn">${u.role === 'admin' ? 'Admin' : 'Petugas'} · PIN ${esc(u.pin)}</span></div>
+     <div class="hr"><button class="btn hx" data-a="pin" data-i="${i}">Ganti PIN</button>
+     ${u.nama.toLowerCase() === S.user.nama.toLowerCase() ? '' : `<button class="btn danger hx" data-a="del" data-i="${i}">Hapus</button>`}</div></li>`).join('');
+}
+$('#btnUsAdd').onclick = async () => {
+  const nama = $('#usNama').value.trim(), pin = $('#usPin').value.trim(), role = $('#usRole').value;
+  if (!nama || !pin) return toast('Nama dan PIN wajib diisi', true);
+  const b = $('#btnUsAdd'); b.disabled = true;
+  try{
+    await api('addUser', {nama, pin, role});
+    $('#usNama').value = ''; $('#usPin').value = ''; $('#usMsg').textContent = '';
+    toast('User ditambahkan'); await loadUsers();
+  }catch(e){ toast(e.message, true); } finally{ b.disabled = false; }
+};
+$('#usList').onclick = async e => {
+  const b = e.target.closest('.hx'); if (!b) return;
+  const u = USERS[Number(b.dataset.i)]; if (!u) return;
+  try{
+    if (b.dataset.a === 'del'){
+      if (!confirm(`Hapus user ${u.nama}? PIN-nya tidak bisa dipakai lagi.`)) return;
+      await api('deleteUser', {nama: u.nama}); toast('User dihapus');
+    }else{
+      const pin = prompt(`PIN baru untuk ${u.nama} (4-12 huruf/angka):`);
+      if (pin === null || !pin.trim()) return;
+      await api('updateUser', {nama: u.nama, pin: pin.trim()}); toast('PIN diganti');
+    }
+    await loadUsers();
+  }catch(err){ toast(err.message, true); }
+};
+
 /* ============ RESET & IMPORT QTY SYSTEM ============ */
 const QY = {fmt: [], raw: [], wb: null, kind: '', text: ''};
 const QSKU_SYN = FIELDS[0].syn, QQTY_SYN = ['qty system', 'qty_system', 'qty', 'stok', 'stock', 'jumlah', 'saldo', 'quantity', 'on hand'];
@@ -1582,7 +1657,7 @@ $('#btn02').onclick = async () => {
 
 /* ============ IMPORT HASIL SCAN (TXT) ============ */
 const IMP = {text: '', rows: []};
-function parseImport(text, item){
+function parseImport(text, item, rakM){
   const rows = new Map(), bad = []; let total = 0, dupe = 0, seen = 0;
   text.replace(/^\uFEFF/, '').split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim(); if (!line) return;
@@ -1590,7 +1665,8 @@ function parseImport(text, item){
     const d = ['\t', ';', '|', ','].find(c => line.includes(c));
     const c = (d ? line.split(d) : [line]).map(x => x.trim());
     let shelf = '', sku = '', qty = null, err = '';
-    if (item) sku = c.length === 1 ? c[0] : c[1];                                          // 2 kolom: rak,SKU -> ambil SKU
+    if (item && rakM){ if (c.length < 2) err = 'tanpa rak'; else{ shelf = c[0]; sku = c[1]; if (!shelf) err = 'rak kosong'; } }
+    else if (item) sku = c.length === 1 ? c[0] : c[1];                                          // 2 kolom: rak,SKU -> ambil SKU
     else if (c.length < 2) err = 'tanpa rak';
     else{
       shelf = c[0]; sku = c[1];
@@ -1600,8 +1676,8 @@ function parseImport(text, item){
     if (!err && !sku) err = 'SKU kosong';
     if (err){ bad.push(`Baris ${i + 1}: ${err}`); return; }
     total++;
-    const r = rows.get(sku);
-    if (!r) rows.set(sku, {sku, shelves: shelf ? [shelf] : [], qty});
+    const key = rakM ? sku + '\t' + shelf.toUpperCase() : sku, r = rows.get(key);   // mode rak: satu baris per SKU + rak
+    if (!r) rows.set(key, {sku, shelves: shelf ? [shelf] : [], qty});
     else{
       dupe++;
       if (shelf && !r.shelves.includes(shelf)) r.shelves.push(shelf);
@@ -1618,9 +1694,9 @@ function renderImport(){
   if (!IMP.text){ info.textContent = ''; return; }
   const c = curSesi();
   if (!c){ info.textContent = 'Pilih sesi dulu.'; return; }
-  const item = curMode() === 'itemize', p = parseImport(IMP.text, item);
+  const item = curMode() === 'itemize', p = parseImport(IMP.text, item, curRak());
   IMP.rows = p.rows;
-  info.innerHTML = `Sesi: <b>${esc(c.nama_sesi)}</b> (${item ? 'Itemize' : 'Stock take'}). ${p.total} baris terbaca menjadi <b>${p.rows.length}</b> SKU`
+  info.innerHTML = `Sesi: <b>${esc(c.nama_sesi)}</b> (${item ? (curRak() ? 'Itemize + Rak' : 'Itemize') : 'Stock take'}). ${p.total} baris terbaca menjadi <b>${p.rows.length}</b> SKU`
     + (p.dupe ? `, ${p.dupe} baris kembar digabung` : '')
     + (p.bad.length ? `. <span style="color:var(--short)">${p.bad.length} tidak valid: ${esc(p.bad.slice(0, 3).join('; '))}${p.bad.length > 3 ? '…' : ''}</span>` : '')
     + (c.status !== 'aktif' ? '. <b>Sesi sudah selesai, tidak bisa import.</b>' : '');
